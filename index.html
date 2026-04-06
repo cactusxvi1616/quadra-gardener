@@ -81,7 +81,7 @@
             position: relative;
         }
 
-        .tile { position: relative; width: 100%; height: 100%; border-radius: 8px; transform-style: preserve-3d; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; }
+        .tile { position: relative; width: 100%; height: 100%; border-radius: 8px; transform-style: preserve-3d; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; font-weight: bold; }
         .tile::after { content: ""; position: absolute; width: 100%; height: 12px; background: rgba(0,0,0,0.2); bottom: -12px; left: 0; transform-origin: top; transform: rotateX(-90deg); border-radius: 0 0 6px 6px; }
 
         .forest { background: #10b981; color: white; }
@@ -264,6 +264,84 @@
             transform: scale(1.05) !important;
             background-color: #34d399 !important;
         }
+
+        /* 技能系統 UI */
+        #skill-container {
+            position: fixed !important;
+            bottom: 20px !important;
+            right: 20px !important;
+            display: flex !important;
+            align-items: flex-end !important;
+            gap: 10px !important;
+            z-index: 9000 !important;
+        }
+        #skill-info-btn {
+            width: 40px !important;
+            height: 40px !important;
+            border-radius: 50% !important;
+            background: #4b5563 !important;
+            color: white !important;
+            border: none !important;
+            cursor: pointer !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 1.2rem !important;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2) !important;
+        }
+        #skill-tooltip {
+            position: absolute !important;
+            bottom: 100% !important;
+            right: 0 !important;
+            margin-bottom: 10px !important;
+            background: rgba(0,0,0,0.85) !important;
+            color: white !important;
+            padding: 12px !important;
+            border-radius: 12px !important;
+            width: 220px !important;
+            font-size: 0.85rem !important;
+            pointer-events: none !important;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3) !important;
+            line-height: 1.5 !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            transition: opacity 0.3s !important;
+        }
+        #skill-tooltip.hidden {
+            opacity: 0 !important;
+            display: none !important;
+        }
+        #skill-action-btn {
+            width: auto !important;
+            padding: 12px 24px !important;
+            border-radius: 15px !important;
+            font-weight: 900 !important;
+            font-size: 1rem !important;
+            border: none !important;
+            cursor: pointer !important;
+            transition: all 0.3s !important;
+            background: #fbbf24 !important;
+            color: #000 !important;
+            box-shadow: 0 0 15px rgba(251, 191, 36, 0.6) !important;
+        }
+        .disabled-skill {
+            background: #9ca3af !important;
+            color: #f3f4f6 !important;
+            filter: grayscale(1) !important;
+            cursor: not-allowed !important;
+            box-shadow: none !important;
+        }
+        
+        /* 玩家卡片金色閃光 */
+        .golden-glow {
+            animation: goldenPulse 1.5s infinite !important;
+            border: 3px solid #fbbf24 !important;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.4) !important;
+        }
+        @keyframes goldenPulse {
+            0% { box-shadow: 0 0 5px rgba(251, 191, 36, 0.4); border-color: #fbbf24; }
+            50% { box-shadow: 0 0 25px rgba(251, 191, 36, 0.8); border-color: #f59e0b; }
+            100% { box-shadow: 0 0 5px rgba(251, 191, 36, 0.4); border-color: #fbbf24; }
+        }
     </style>
 </head>
 <body>
@@ -352,6 +430,16 @@
             <div id="dice-res" style="font-size: 1.2rem; font-weight: 900; color: var(--primary); background: white; padding: 5px 15px; border-radius: 20px; display: none;"></div>
             <button id="dice-btn" class="btn-primary" onclick="handleDiceRoll()">🎲</button>
             <div id="turn-info"><span id="turn-text">等待玩家行動...</span></div>
+            
+            <!-- 技能 UI -->
+            <div id="skill-container">
+                <div id="skill-tooltip" class="hidden">技能敘述載入中...</div>
+                <button id="skill-info-btn" 
+                    onmouseenter="document.getElementById('skill-tooltip').classList.remove('hidden')" 
+                    onmouseleave="document.getElementById('skill-tooltip').classList.add('hidden')"
+                    ontouchstart="document.getElementById('skill-tooltip').classList.toggle('hidden')">ℹ️</button>
+                <button id="skill-action-btn" onclick="useSkill()">✨ 發動技能</button>
+            </div>
         </div>
         
         <!-- 獨立於容器外的退出按鈕 -->
@@ -423,6 +511,10 @@
         let gameStarted = false;
         let lastStatus = null;
         let waitingTimer = null; // 用來管理大廳的倒數計時器
+        let boardLayout = null; // 儲存隨機地圖配置
+        let hasRolled = false; // 追蹤目前玩家是否已擲骰
+        let lastTurnId = null; // 用於偵測回合切換
+        let isOwlSkillActive = false; // 貓頭鷹技能狀態
 
         // --- 地圖定義 ---
         const junctions = ["1,4", "7,4", "4,1", "4,7", "4,4"];
@@ -504,6 +596,7 @@
                 }
                 players = Object.values(data.players || {}).sort((a, b) => a.id.localeCompare(b.id));
                 currentTurnId = data.currentTurn;
+                boardLayout = data.boardLayout;
                 updateWaitingUI();
 
                 // 根據狀態切換畫面
@@ -643,11 +736,31 @@
 
         function startGameInitialization(allPlayers, factions) {
             const pArr = Object.values(allPlayers).sort((a,b) => a.id.localeCompare(b.id));
-            const updates = { status: 'started', currentTurn: pArr[0].id };
+            
+            // 生成隨機地圖配置
+            const layout = {};
+            const tileTypes = ['resource', 'resource', 'resource', 'event', 'event', 'task', 'task'];
+            
+            for (const eco in ecosystems) {
+                // 隨機打亂配置陣列
+                const shuffled = [...tileTypes].sort(() => Math.random() - 0.5);
+                ecosystems[eco].forEach((pos, idx) => {
+                    layout[pos] = shuffled[idx];
+                });
+            }
+
+            const updates = { 
+                status: 'started', 
+                currentTurn: pArr[0].id,
+                boardLayout: layout 
+            };
             
             pArr.forEach((p, idx) => {
                 const startPos = spawnPoints[idx];
                 updates[`players/${p.id}/pos`] = startPos;
+                updates[`players/${p.id}/skillCooldown`] = 0;
+                updates[`players/${p.id}/isSkillActive`] = false;
+                updates[`players/${p.id}/shieldActive`] = false;
                 
                 const res = { forest: 0, rainforest: 0, river: 0, ocean: 0 };
                 let faction = p.faction;
@@ -798,6 +911,8 @@
             boardEl.appendChild(pawnsLayer);
             boardEl.appendChild(arrowLayer);
 
+            const ecoIcons = { forest: "🌲", rainforest: "🌴", river: "💧", ocean: "🌊" };
+
             validTiles.forEach(id => {
                 const [r, c] = id.split(',').map(Number);
                 const tile = document.createElement('div');
@@ -808,19 +923,23 @@
 
                 if(junctions.includes(id)) {
                     tile.classList.add('junction');
-                    tile.innerText = "任務";
+                    tile.innerText = "🌍";
                 } else if(id === "4,4") {
                     tile.classList.add('center');
-                    tile.innerText = "事件";
-                } else if(spawnPoints.includes(id)) {
-                    tile.classList.add('spawn');
-                    tile.innerText = "基地";
+                    tile.innerText = "❓";
                 } else {
                     let eco = "";
                     for(let key in ecosystems) if(ecosystems[key].includes(id)) eco = key;
                     if(eco) {
                         tile.classList.add(eco);
-                        tile.innerText = eco.charAt(0).toUpperCase();
+                        const type = boardLayout ? boardLayout[id] : 'resource';
+                        if (type === 'event') {
+                            tile.innerText = '❓';
+                        } else if (type === 'task') {
+                            tile.innerText = '🎯';
+                        } else {
+                            tile.innerText = ecoIcons[eco] || "";
+                        }
                     } else {
                         tile.innerText = "";
                     }
@@ -843,7 +962,11 @@
             const bar = document.getElementById('player-status-bar');
             if (!bar) return;
             
-            console.log("Syncing Game - Current Turn ID:", currentTurnId, "Players:", players);
+            // 當回合切換時，重置本地擲骰狀態
+            if (lastTurnId !== currentTurnId) {
+                hasRolled = false;
+                lastTurnId = currentTurnId;
+            }
 
             const resIcons = { forest: "🌲", rainforest: "🌴", river: "💧", ocean: "🌊" };
 
@@ -851,10 +974,21 @@
             bar.innerHTML = players.map((p, i) => {
                 const res = p.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 };
                 const isActive = p.id === currentTurnId;
+                const isSkillActive = p.isSkillActive === true;
+                
+                // 找出角色名稱
+                let charName = "未知";
+                if (p.selectedChar) {
+                    for (let f in characters) {
+                        const found = characters[f].find(c => c.id === p.selectedChar);
+                        if (found) { charName = found.name; break; }
+                    }
+                }
+
                 return `
-                    <div class="player-card ${isActive ? 'active-turn' : ''}">
+                    <div class="player-card ${isActive ? 'active-turn' : ''} ${isSkillActive ? 'golden-glow' : ''}">
                         <div style="font-weight:900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: ${isActive ? 'var(--primary)' : 'inherit'}">
-                            ${isActive ? '▶ ' : ''}${p.name || '玩家'}
+                            ${isActive ? '▶ ' : ''}${charName} (${p.name || '玩家'})
                         </div>
                         <div class="score">${p.score || 0} pts</div>
                         <div class="resources">
@@ -876,17 +1010,155 @@
             const currentPlayer = players.find(p => p.id === currentTurnId);
             const playerName = currentPlayer ? currentPlayer.name : "載入中...";
             
-            console.log("Current Player Found:", currentPlayer);
-
             const turnTextEl = document.getElementById('turn-text');
             if (turnTextEl) {
                 turnTextEl.innerText = isMyTurn ? "輪到你了！" : `等待 ${playerName} 行動...`;
             }
             
-            // 檢查勝利條件 (放在這裡確保每次同步都檢查)
+            // 更新技能按鈕狀態
+            updateSkillButton();
+
+            // 檢查勝利條件
             players.forEach(p => {
                 if(p.score >= 15) showVictory(p.name);
             });
+        }
+
+        function updateSkillButton() {
+            const myPlayer = players.find(p => p.id === myId);
+            if (!myPlayer || !myPlayer.selectedChar) return;
+
+            // 找出我的角色資料
+            let myCharInfo = null;
+            for (let f in characters) {
+                myCharInfo = characters[f].find(c => c.id === myPlayer.selectedChar);
+                if (myCharInfo) break;
+            }
+            if (!myCharInfo) return;
+
+            const tooltip = document.getElementById('skill-tooltip');
+            const btn = document.getElementById('skill-action-btn');
+            
+            tooltip.innerText = `${myCharInfo.name}技能：${myCharInfo.skillDesc}`;
+
+            const isMyTurn = myId === currentTurnId;
+            const cooldown = myPlayer.skillCooldown || 0;
+
+            if (myCharInfo.type === '被動') {
+                btn.innerText = "被動技能";
+                btn.classList.add('disabled-skill');
+                btn.disabled = true;
+            } else if (!isMyTurn) {
+                btn.innerText = "等待回合";
+                btn.classList.add('disabled-skill');
+                btn.disabled = true;
+            } else if (hasRolled) {
+                btn.innerText = "已擲骰";
+                btn.classList.add('disabled-skill');
+                btn.disabled = true;
+            } else if (cooldown > 0) {
+                btn.innerText = `冷卻中 (${cooldown}回合)`;
+                btn.classList.add('disabled-skill');
+                btn.disabled = true;
+            } else {
+                btn.innerText = "✨ 發動技能";
+                btn.classList.remove('disabled-skill');
+                btn.disabled = false;
+            }
+        }
+
+        async function useSkill() {
+            const myPlayer = players.find(p => p.id === myId);
+            let myCharInfo = null;
+            for (let f in characters) {
+                myCharInfo = characters[f].find(c => c.id === myPlayer.selectedChar);
+                if (myCharInfo) break;
+            }
+
+            if (!myCharInfo || myCharInfo.type === '被動' || myId !== currentTurnId || hasRolled || (myPlayer.skillCooldown || 0) > 0) return;
+
+            const confirmed = await showModal("發動技能", `確定要發動「${myCharInfo.name}」的技能嗎？\n\n${myCharInfo.skillDesc}`, true);
+            if (!confirmed) return;
+
+            const updates = {
+                isSkillActive: true,
+                skillCooldown: myCharInfo.cooldown
+            };
+
+            // 技能個別邏輯 Switch 區塊
+            switch(myCharInfo.id) {
+                case 'owl': // 貓頭鷹：本回合可擲骰兩次
+                    isOwlSkillActive = true;
+                    await showModal("技能發動", "「貓頭鷹」發動了夜行俯衝！本次擲骰將產生兩個點數供你選擇。", false);
+                    break;
+                case 'squirrel': // 松鼠：瞬移到最近的森林資源格
+                    const forestResTiles = ecosystems.forest.filter(pos => boardLayout[pos] === 'resource');
+                    if (forestResTiles.length > 0) {
+                        const [currR, currC] = myPlayer.pos.split(',').map(Number);
+                        forestResTiles.sort((a, b) => {
+                            const [ar, ac] = a.split(',').map(Number);
+                            const [br, bc] = b.split(',').map(Number);
+                            return (Math.abs(ar - currR) + Math.abs(ac - currC)) - (Math.abs(br - currR) + Math.abs(bc - currC));
+                        });
+                        const targetPos = forestResTiles[0];
+                        await db.ref(`rooms/${roomCode}/players/${myId}`).update({ pos: targetPos, lastPos: myPlayer.pos });
+                        await showModal("技能發動", "「松鼠」發動了秘藏堅果！直接跳躍到了最近的森林資源格。", false);
+                        await triggerTileEffect(myPlayer, targetPos);
+                        return; // triggerTileEffect 會處理換手
+                    }
+                    break;
+                case 'frog': // 樹蛙：開啟護盾
+                    updates.shieldActive = true;
+                    await showModal("技能發動", "「樹蛙」發動了環境預警！本回合將免疫負面事件。", false);
+                    break;
+                case 'toucan': // 大嘴鳥：獲得資源並結束
+                    const toucanRes = myPlayer.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 };
+                    toucanRes.rainforest += 2;
+                    await db.ref(`rooms/${roomCode}/players/${myId}`).update({ resources: toucanRes, ...updates });
+                    await showModal("技能發動", "「大嘴鳥」發動了果實採集！獲得了 2 點雨林資源。", false);
+                    await switchTurn(myId);
+                    return;
+                case 'spoonbill': // 黑面琵鷺：返回起點
+                    await db.ref(`rooms/${roomCode}/players/${myId}`).update({ pos: "7,1", lastPos: myPlayer.pos, ...updates });
+                    await showModal("技能發動", "「黑面琵鷺」發動了候鳥遷徙！立刻返回了河川區起點。", false);
+                    await switchTurn(myId);
+                    return;
+                case 'kingfisher': // 翠鳥：偷取資源
+                    const targets = players.filter(p => p.id !== myId && p.score > 0);
+                    if (targets.length > 0) {
+                        targets.sort((a, b) => (b.score || 0) - (a.score || 0));
+                        const target = targets[0];
+                        const targetRes = target.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 };
+                        const availableKeys = Object.keys(targetRes).filter(k => targetRes[k] > 0);
+                        if (availableKeys.length > 0) {
+                            const stolenKey = availableKeys[Math.floor(Math.random() * availableKeys.length)];
+                            targetRes[stolenKey]--;
+                            const myRes = myPlayer.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 };
+                            myRes[stolenKey]++;
+                            const batch = {};
+                            batch[`players/${target.id}/resources`] = targetRes;
+                            batch[`players/${myId}/resources`] = myRes;
+                            await db.ref(`rooms/${roomCode}`).update(batch);
+                            await showModal("技能發動", `「翠鳥」從 ${target.name} 身上偷取了 1 個 ${stolenKey} 資源！`, false);
+                        } else {
+                            await showModal("技能發動", `「翠鳥」發動了技能，但 ${target.name} 沒有資源可以偷取...`, false);
+                        }
+                    }
+                    break;
+                case 'dolphin': // 海豚：聲波探測
+                    const eventTiles = Object.keys(boardLayout).filter(pos => boardLayout[pos] === 'event' || pos === "4,4");
+                    const eventList = eventTiles.map(pos => {
+                        const [r, c] = pos.split(',');
+                        return `座標 (${r}, ${c})`;
+                    }).join('\n');
+                    await showModal("技能發動", `「海豚」發動了聲波探測！\n目前地圖上的事件格位置：\n${eventList}`, false);
+                    break;
+            }
+
+            await db.ref(`rooms/${roomCode}/players/${myId}`).update(updates);
+            if (myCharInfo.id !== 'owl' && myCharInfo.id !== 'squirrel' && myCharInfo.id !== 'toucan' && myCharInfo.id !== 'spoonbill') {
+                await showModal("技能發動", `「${myCharInfo.name}」發動了技能！`, false);
+            }
         }
 
         function syncPawns() {
@@ -906,19 +1178,53 @@
             const btn = document.getElementById('dice-btn');
             const res = document.getElementById('dice-res');
             btn.disabled = true;
+            hasRolled = true; // 標記已擲骰
+            updateSkillButton(); // 立即更新技能按鈕狀態
+            
             btn.classList.add('dice-rolling');
             res.style.display = 'block';
 
-            let roll = 1;
-            const rollInterval = setInterval(() => {
-                roll = Math.floor(Math.random() * 4) + 1;
-                res.innerText = `🎲 擲骰中... ${roll}`;
-            }, 80);
+            let finalRoll;
 
-            await new Promise(r => setTimeout(r, 1000));
-            clearInterval(rollInterval);
-            
-            const finalRoll = Math.floor(Math.random() * 4) + 1;
+            if (isOwlSkillActive) {
+                clearInterval(window.rollInterval);
+                const r1 = Math.floor(Math.random() * 4) + 1;
+                const r2 = Math.floor(Math.random() * 4) + 1;
+                res.innerText = `🎲 貓頭鷹技能：請選擇點數`;
+                
+                const choice = await new Promise(resolve => {
+                    const modal = document.getElementById('game-modal');
+                    const t = document.getElementById('modal-title');
+                    const b = document.getElementById('modal-body');
+                    const footer = document.getElementById('modal-footer');
+                    const oldFooter = footer.innerHTML;
+                    
+                    t.innerText = "夜行俯衝";
+                    b.innerText = "請選擇你要移動的點數：";
+                    footer.innerHTML = `
+                        <button class="btn-primary" id="choice-1" style="margin: 5px;">${r1}</button>
+                        <button class="btn-primary" id="choice-2" style="margin: 5px;">${r2}</button>
+                    `;
+                    modal.style.display = 'flex';
+                    
+                    document.getElementById('choice-1').onclick = () => { footer.innerHTML = oldFooter; modal.style.display = 'none'; resolve(r1); };
+                    document.getElementById('choice-2').onclick = () => { footer.innerHTML = oldFooter; modal.style.display = 'none'; resolve(r2); };
+                });
+                finalRoll = choice;
+                isOwlSkillActive = false;
+            } else {
+                let roll = 1;
+                const rollInterval = setInterval(() => {
+                    roll = Math.floor(Math.random() * 4) + 1;
+                    res.innerText = `🎲 擲骰中... ${roll}`;
+                }, 80);
+                window.rollInterval = rollInterval;
+
+                await new Promise(r => setTimeout(r, 1000));
+                clearInterval(rollInterval);
+                finalRoll = Math.floor(Math.random() * 4) + 1;
+            }
+
             btn.classList.remove('dice-rolling');
             res.innerText = `🎲 擲出了 ${finalRoll}！`;
             
@@ -951,6 +1257,13 @@
                 lastPos = currentPos;
                 currentPos = nextPos;
 
+                // 梅花鹿被動：種子傳播
+                if (player.selectedChar === 'deer' && (junctions.includes(currentPos) || boardLayout[currentPos] === 'task')) {
+                    const deerRes = player.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 };
+                    deerRes.forest += 1;
+                    await db.ref(`rooms/${roomCode}/players/${player.id}`).update({ resources: deerRes });
+                }
+
                 await db.ref(`rooms/${roomCode}/players/${player.id}`).update({ pos: currentPos, lastPos: lastPos });
                 await new Promise(r => setTimeout(r, 600)); // 移動動畫
             }
@@ -966,10 +1279,25 @@
             let resources = pData.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 };
             let score = pData.score || 0;
             const resNames = { forest: "森林", rainforest: "雨林", river: "河川", ocean: "海洋" };
+            const charId = pData.selectedChar;
 
             // 判斷格子類型
             let ecoType = "";
             for(let key in ecosystems) if(ecosystems[key].includes(pos)) ecoType = key;
+            const tileType = boardLayout ? boardLayout[pos] : null;
+
+            // 珊瑚被動：海底森林
+            if (charId === 'coral' && ecoType === 'ocean') {
+                resources.ocean += 2;
+                const othersUpdates = {};
+                players.forEach(p => {
+                    if (p.id !== player.id) {
+                        othersUpdates[`players/${p.id}/score`] = (p.score || 0) + 1;
+                    }
+                });
+                await db.ref(`rooms/${roomCode}`).update(othersUpdates);
+                await showModal("被動技能：海底森林", "你在海洋區停留，獲得 2 點海洋資源，並讓其他玩家各獲得 1 點積分！", false);
+            }
 
             if (pos === "4,4") {
                 // 中央事件格
@@ -978,6 +1306,10 @@
                         Object.keys(resources).forEach(k => resources[k] += 2);
                     }},
                     { title: "氣候變遷警告", body: "極端天氣來襲，隨機失去 2 個資源。", effect: () => {
+                        // 檢查護盾與海龜被動
+                        if (charId === 'turtle' || pData.shieldActive) {
+                            return "immune";
+                        }
                         for(let i=0; i<2; i++) {
                             const keys = Object.keys(resources).filter(k => resources[k] > 0);
                             if(keys.length > 0) resources[keys[Math.floor(Math.random() * keys.length)]]--;
@@ -988,48 +1320,91 @@
                     }}
                 ];
                 const evt = events[Math.floor(Math.random() * events.length)];
-                evt.effect();
-                await showModal(evt.title, evt.body, false);
+                const result = evt.effect();
+                if (result === "immune") {
+                    await showModal("技能發動！", "免疫負面效果！", false);
+                } else {
+                    await showModal(evt.title, evt.body, false);
+                }
             } else if (junctions.includes(pos)) {
-                // 任務格
-                const availableRes = Object.keys(resources).filter(k => resources[k] >= 2);
+                // 岔路複合任務格
+                const cost = (charId === 'fish') ? 1 : 2;
+                const availableRes = Object.keys(resources).filter(k => resources[k] >= cost);
                 
                 if (availableRes.length > 0) {
                     const targetRes = availableRes[0];
                     const confirmed = await showModal(
                         "環境保育任務",
-                        `這裡需要你的幫助！是否消耗 2 個 ${resNames[targetRes]} 資源來修復棲息地？（可獲得 3 點積分）`,
+                        `這裡需要你的幫助！是否消耗 ${cost} 個 ${resNames[targetRes]} 資源來修復棲息地？（可獲得 3 點積分）`,
                         true
                     );
                     if (confirmed) {
-                        resources[targetRes] -= 2;
+                        resources[targetRes] -= cost;
                         score += 3;
-                        await showModal("任務成功", "感謝你的貢獻，生態環境得到了改善！", false);
+                        // 鸚鵡被動：群聚呼喚
+                        if (charId === 'parrot') {
+                            const keys = Object.keys(resources);
+                            resources[keys[Math.floor(Math.random() * keys.length)]]++;
+                            await showModal("任務成功", "感謝你的貢獻！鸚鵡發動了群聚呼喚，額外獲得 1 個隨機資源！", false);
+                        } else {
+                            await showModal("任務成功", "感謝你的貢獻，生態環境得到了改善！", false);
+                        }
                     }
                 } else {
-                    await showModal("環境觀測站", "這裡是重要的生態節點。如果你有足夠的資源（2個相同類型），可以在此執行保育任務。", false);
+                    await showModal("環境觀測站", `這裡是重要的生態節點。如果你有足夠的資源（${cost}個相同類型），可以在此執行保育任務。`, false);
                 }
-            } else if (ecoType) {
+            } else if (tileType === 'resource') {
                 // 資源格
                 resources[ecoType] += 2;
                 await showModal("資源採集", `你在${resNames[ecoType]}區域收集到了 2 個自然資源！`, false);
-            } else if (spawnPoints.includes(pos)) {
-                // 基地
-                const resKeys = Object.keys(resources);
-                const randomRes = resKeys[Math.floor(Math.random() * resKeys.length)];
-                resources[randomRes]++;
-                await showModal("回到基地", `在基地休整期間，你獲得了 1 個 ${resNames[randomRes]} 資源。`, false);
-            } else {
-                // 普通格 - 隨機小事件
-                if (Math.random() < 0.25) {
-                    const randomEvents = [
-                        { title: "拾獲垃圾", body: "你順手清理了路邊的垃圾，獲得 1 點積分！", effect: () => score++ },
-                        { title: "迷路的小動物", body: "你引導迷路的小動物回到巢穴，獲得 1 點積分！", effect: () => score++ },
-                        { title: "發現水源", body: "你發現了一處乾淨的水源，獲得 1 個河川資源。", effect: () => resources.river++ }
-                    ];
-                    const evt = randomEvents[Math.floor(Math.random() * randomEvents.length)];
-                    evt.effect();
+            } else if (tileType === 'event') {
+                // 事件格
+                const randomEvents = [
+                    { title: "拾獲垃圾", body: "你順手清理了路邊的垃圾，獲得 1 點積分！", effect: () => score++ },
+                    { title: "迷路的小動物", body: "你引導迷路的小動物回到巢穴，獲得 1 點積分！", effect: () => score++ },
+                    { title: "發現水源", body: "你發現了一處乾淨的水源，獲得 1 個河川資源。", effect: () => resources.river++ },
+                    { title: "外來種入侵", body: "外來種威脅當地生態，失去 1 個隨機資源。", effect: () => {
+                        if (charId === 'turtle' || pData.shieldActive) return "immune";
+                        const keys = Object.keys(resources).filter(k => resources[k] > 0);
+                        if(keys.length > 0) resources[keys[Math.floor(Math.random() * keys.length)]]--;
+                    }},
+                    { title: "棲地破壞", body: "人類開發導致棲地縮減，失去 1 點積分。", effect: () => {
+                        if (charId === 'turtle' || pData.shieldActive) return "immune";
+                        if (score > 0) score--;
+                    }}
+                ];
+                const evt = randomEvents[Math.floor(Math.random() * randomEvents.length)];
+                const result = evt.effect();
+                if (result === "immune") {
+                    await showModal("技能發動！", "免疫負面效果！", false);
+                } else {
                     await showModal(evt.title, evt.body, false);
+                }
+            } else if (tileType === 'task') {
+                // 任務格
+                const cost = 2; // 任務格目前固定為 2
+                const availableRes = Object.keys(resources).filter(k => resources[k] >= cost);
+                if (availableRes.length > 0) {
+                    const targetRes = availableRes[Math.floor(Math.random() * availableRes.length)];
+                    const confirmed = await showModal(
+                        "生態任務",
+                        `是否消耗 ${cost} 個 ${resNames[targetRes]} 資源來執行保育任務？（可獲得 3 點積分）`,
+                        true
+                    );
+                    if (confirmed) {
+                        resources[targetRes] -= cost;
+                        score += 3;
+                        // 鸚鵡被動：群聚呼喚
+                        if (charId === 'parrot') {
+                            const keys = Object.keys(resources);
+                            resources[keys[Math.floor(Math.random() * keys.length)]]++;
+                            await showModal("任務成功", "感謝你的貢獻！鸚鵡發動了群聚呼喚，額外獲得 1 個隨機資源！", false);
+                        } else {
+                            await showModal("任務成功", "感謝你的貢獻！", false);
+                        }
+                    }
+                } else {
+                    await showModal("生態任務", "這裡需要特定資源才能執行任務。繼續努力收集吧！", false);
                 }
             }
 
@@ -1049,7 +1424,24 @@
             console.log("下一位玩家 ID:", nextPlayer.id, "名稱:", nextPlayer.name);
             console.log("------------------");
 
-            await db.ref('rooms/' + roomCode).update({ currentTurn: nextPlayer.id });
+            // 準備下一位玩家的更新資料
+            const nextPlayerUpdates = {
+                isSkillActive: false, // 特效持續一整圈，直到他的下回合開始才消失
+                shieldActive: false // 重置護盾
+            };
+            
+            if ((nextPlayer.skillCooldown || 0) > 0) {
+                nextPlayerUpdates.skillCooldown = nextPlayer.skillCooldown - 1;
+            }
+
+            const updates = { currentTurn: nextPlayer.id };
+            updates[`players/${nextPlayer.id}/isSkillActive`] = nextPlayerUpdates.isSkillActive;
+            updates[`players/${nextPlayer.id}/shieldActive`] = nextPlayerUpdates.shieldActive;
+            if (nextPlayerUpdates.hasOwnProperty('skillCooldown')) {
+                updates[`players/${nextPlayer.id}/skillCooldown`] = nextPlayerUpdates.skillCooldown;
+            }
+
+            await db.ref('rooms/' + roomCode).update(updates);
         }
 
         function showModal(title, body, showCancel = true) {
