@@ -129,7 +129,37 @@
         .dice-rolling { animation: diceShake 0.1s infinite; }
         @keyframes diceShake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(5deg); } 75% { transform: rotate(-5deg); } }
 
-        #exit-btn { position: absolute; bottom: 20px; right: 20px; z-index: 200; background: rgba(255,255,255,0.8); color: #ef4444; border: 1px solid #fecaca; padding: 8px 15px; border-radius: 10px; font-size: 0.8rem; }
+        #exit-btn {
+            position: fixed !important;
+            bottom: 20px !important;
+            left: 20px !important;
+            width: auto !important;
+            padding: 8px 16px !important;
+            background-color: #ff4d4f !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 8px !important;
+            font-size: 14px !important;
+            font-weight: bold !important;
+            z-index: 9999 !important;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+            cursor: pointer !important;
+            transition: transform 0.2s !important;
+        }
+        #exit-btn:hover {
+            transform: scale(1.05) !important;
+            background-color: #ff7875 !important;
+        }
+        
+        #turn-info {
+            font-weight: bold;
+            color: var(--text);
+            background: rgba(255,255,255,0.9);
+            padding: 8px 20px;
+            border-radius: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -162,7 +192,6 @@
     </div>
 
     <div id="game-screen" class="screen">
-        <button id="exit-btn" onclick="leaveRoom()">退出遊戲</button>
         <div class="game-header" id="player-status-bar"></div>
         <div id="turn-banner">輪到你了！請擲骰子</div>
 
@@ -177,8 +206,11 @@
         <div class="game-footer">
             <div id="dice-res" style="font-size: 1.2rem; font-weight: 900; color: var(--primary); background: white; padding: 5px 15px; border-radius: 20px; display: none;"></div>
             <button id="dice-btn" class="btn-primary" onclick="handleDiceRoll()">🎲</button>
-            <div id="turn-info" style="font-weight: bold; color: var(--text); background: rgba(255,255,255,0.8); padding: 5px 15px; border-radius: 20px;"></div>
+            <div id="turn-info">等待玩家行動...</div>
         </div>
+        
+        <!-- 獨立於容器外的退出按鈕 -->
+        <button id="exit-btn" onclick="leaveRoom()">退出遊戲</button>
     </div>
 
     <script>
@@ -199,6 +231,7 @@
         let players = [];
         let currentTurnId = null;
         let isDev = false;
+        let gameStarted = false;
 
         // --- 地圖定義 ---
         const junctions = ["1,4", "7,4", "4,1", "4,7", "4,4"];
@@ -264,8 +297,13 @@
                 updateWaitingUI();
                 if(players.length === 4 && data.status === 'waiting') startCountdown();
                 if(data.status === 'started') {
-                    if(!data.currentTurn && players[0].id === myId) ref.update({ currentTurn: players[0].id });
-                    initGameUI();
+                    if(!gameStarted) {
+                        gameStarted = true;
+                        if(!data.currentTurn && players[0].id === myId) ref.update({ currentTurn: players[0].id });
+                        initGameUI();
+                    } else {
+                        syncGame();
+                    }
                 }
             });
         }
@@ -354,6 +392,7 @@
 
         function syncGame() {
             const bar = document.getElementById('player-status-bar');
+            if (!bar) return;
             bar.innerHTML = players.map((p, i) => `
                 <div class="player-card ${p.id === currentTurnId ? 'active-turn' : ''}">
                     <div style="font-weight:900;">${p.name}</div>
@@ -374,7 +413,10 @@
             const canAct = isMyTurn || isDev;
             document.getElementById('dice-btn').style.display = canAct ? 'block' : 'none';
             document.getElementById('turn-banner').style.display = isMyTurn ? 'block' : 'none';
-            document.getElementById('turn-info').innerText = isMyTurn ? "輪到你了！" : `等待 ${players.find(p=>p.id===currentTurnId)?.name} 行動...`;
+            
+            const currentPlayer = players.find(p => p.id === currentTurnId);
+            const playerName = currentPlayer ? currentPlayer.name : "載入中...";
+            document.getElementById('turn-info').innerText = isMyTurn ? "輪到你了！" : `等待 ${playerName} 行動...`;
         }
 
         // --- 移動與岔路邏輯 ---
@@ -519,9 +561,12 @@
 
         function leaveRoom() {
             if(!roomCode) return;
-            if(!confirm('確定要解散房間並退出遊戲嗎？')) return;
-            const ref = db.ref('rooms/' + roomCode);
-            ref.remove();
+            if(!confirm('確定要退出遊戲嗎？')) return;
+            const ref = db.ref(`rooms/${roomCode}/players/${myId}`);
+            ref.remove().then(() => {
+                gameStarted = false;
+                window.location.reload();
+            });
         }
 
         window.onresize = syncGame;
