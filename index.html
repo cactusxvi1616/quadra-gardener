@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>四域園丁 - 2.5D 策略桌遊</title>
+    <title>四域園丁 - 環境保育策略桌遊</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
@@ -46,9 +46,25 @@
         #game-screen { background: radial-gradient(circle at center, #ecfdf5 0%, #d1fae5 100%); perspective: 2000px; }
 
         /* 頂部狀態欄 */
-        .game-header { position: absolute; top: 20px; width: 90%; display: flex; justify-content: space-around; gap: 10px; z-index: 100; left: 5%; }
-        .player-card { flex: 1; background: rgba(255, 255, 255, 0.9); padding: 8px; border-radius: 12px; border: 2px solid transparent; text-align: center; font-size: 0.7rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.3s; }
-        .player-card.active-turn { border-color: var(--primary); box-shadow: 0 0 15px rgba(16, 185, 129, 0.6); transform: translateY(-5px); background: white; }
+        .game-header { position: absolute; top: 20px; width: 96%; display: flex; justify-content: space-around; gap: 8px; z-index: 100; left: 2%; }
+        .player-card { flex: 1; background: rgba(255, 255, 255, 0.95); padding: 6px; border-radius: 12px; border: 2px solid transparent; text-align: center; font-size: 0.65rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: all 0.3s; backdrop-filter: blur(5px); }
+        .player-card.active-turn { border-color: var(--primary); box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); transform: translateY(-3px); background: white; }
+        .player-card .score { font-size: 0.9rem; font-weight: 900; color: var(--primary); margin: 2px 0; }
+        .player-card .resources { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; font-size: 0.6rem; margin-top: 4px; }
+        .res-item { display: flex; align-items: center; justify-content: center; gap: 2px; padding: 1px; border-radius: 4px; background: #f3f4f6; }
+
+        /* Modal 彈窗 */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(3px); }
+        .modal-content { background: white; padding: 2rem; border-radius: 1.5rem; width: 85%; max-width: 350px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); border: 4px solid var(--primary); }
+        .modal-title { font-size: 1.25rem; font-weight: 900; color: var(--text); margin-bottom: 1rem; }
+        .modal-body { font-size: 1rem; color: #4b5563; margin-bottom: 1.5rem; line-height: 1.5; }
+        .modal-footer { display: flex; gap: 10px; }
+        .btn-cancel { background: #f3f4f6; color: #4b5563; }
+
+        /* 勝利畫面 */
+        #victory-screen { position: fixed; inset: 0; background: var(--primary); color: white; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 20000; text-align: center; }
+        #victory-screen h1 { font-size: 3rem; margin-bottom: 1rem; animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
         #turn-banner { position: absolute; top: 100px; background: var(--primary); color: white; padding: 10px 30px; border-radius: 50px; font-weight: 900; box-shadow: 0 10px 20px rgba(0,0,0,0.1); z-index: 100; display: none; }
 
@@ -73,6 +89,8 @@
         .river { background: #7dd3fc; color: #0369a1; }
         .ocean { background: #1e40af; color: white; }
         .junction { background: #f43f5e; color: white; border: 3px solid #fff; }
+        .center { background: #fef3c7; border: 3px solid #f59e0b; color: #b45309; font-weight: 900; }
+        .spawn { background: #f3f4f6; border: 3px solid #9ca3af; color: #4b5563; font-size: 0.6rem; }
 
         /* 棋子樣式 (黏在棋盤內) */
         #pawns-layer { position: absolute; inset: 0; pointer-events: none; transform-style: preserve-3d; }
@@ -160,6 +178,92 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             text-align: center;
         }
+
+        /* 陣營搶奪介面 */
+        #faction-screen { background: #f8fafc; }
+        .faction-grid {
+            display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+            gap: 15px; width: 90%; max-width: 500px; height: 60vh;
+        }
+        .faction-box {
+            border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; font-weight: 900; cursor: pointer; transition: all 0.3s; position: relative; overflow: hidden;
+            border: 5px solid transparent;
+        }
+        .faction-box:hover { transform: scale(1.02); }
+        .faction-box.taken { cursor: not-allowed; opacity: 0.8; filter: grayscale(0.5); }
+        .faction-box.mine { border-color: white; box-shadow: 0 0 20px rgba(255,255,255,0.5); }
+        .faction-box .status { font-size: 0.8rem; margin-top: 10px; background: rgba(0,0,0,0.2); padding: 4px 12px; border-radius: 20px; }
+        
+        .box-forest { background: #10b981; }
+        .box-rainforest { background: #064e3b; }
+        .box-river { background: #7dd3fc; color: #0369a1; }
+        .box-ocean { background: #1e40af; }
+
+        /* 選角介面 */
+        #char-screen { background: #f1f5f9; }
+        .carousel-container {
+            display: flex; align-items: center; justify-content: center; gap: 20px; width: 100%; margin-top: 20px;
+        }
+        .char-card {
+            width: 280px; background: white; border-radius: 25px; overflow: hidden;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative;
+            border: 8px solid #ccc; transition: all 0.5s;
+        }
+        .char-card.forest { border-color: #10b981; }
+        .char-card.rainforest { border-color: #064e3b; }
+        .char-card.river { border-color: #7dd3fc; }
+        .char-card.ocean { border-color: #1e40af; }
+
+        .char-img {
+            width: 100%; aspect-ratio: 7/5; background: #e5e7eb; position: relative;
+            background-size: cover; background-position: center;
+        }
+        .faction-tag {
+            position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5);
+            color: white; padding: 4px 10px; border-radius: 10px; font-size: 0.7rem;
+        }
+        .name-badge {
+            position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%);
+            background: white; padding: 8px 25px; border-radius: 30px; font-weight: 900;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 2px solid currentColor;
+            z-index: 10; min-width: 100px;
+        }
+        .char-desc {
+            padding: 25px 20px 20px; text-align: left;
+        }
+        .skill-title { font-weight: 900; font-size: 1.1rem; margin-bottom: 5px; color: #1f2937; }
+        .skill-desc { font-size: 0.9rem; color: #4b5563; line-height: 1.4; font-weight: bold; }
+        .lore-text { font-size: 0.75rem; color: #9ca3af; margin-top: 12px; line-height: 1.3; font-style: italic; }
+
+        .carousel-btn {
+            background: white; border: none; width: 40px; height: 40px; border-radius: 50%;
+            font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex; align-items: center; justify-content: center; color: var(--primary);
+        }
+        .carousel-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .dev-cheat-btn {
+            position: fixed !important;
+            bottom: 70px !important;
+            left: 20px !important;
+            width: auto !important;
+            padding: 8px 16px !important;
+            background-color: #10b981 !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 8px !important;
+            font-size: 14px !important;
+            font-weight: bold !important;
+            z-index: 9999 !important;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+            cursor: pointer !important;
+            transition: transform 0.2s !important;
+        }
+        .dev-cheat-btn:hover {
+            transform: scale(1.05) !important;
+            background-color: #34d399 !important;
+        }
     </style>
 </head>
 <body>
@@ -191,6 +295,47 @@
         </div>
     </div>
 
+    <div id="faction-screen" class="screen">
+        <h1 style="margin-bottom: 20px; font-weight: 900;">選擇你的陣營</h1>
+        <div id="faction-countdown" style="margin-bottom: 15px; color: var(--primary); font-weight: bold; display: none;">即將進入選角... <span id="f-secs">5</span>s</div>
+        <div class="faction-grid">
+            <div class="faction-box box-forest" onclick="selectFaction('forest')">
+                <div style="font-size: 1.5rem;">森林</div>
+                <div id="status-forest" class="status">可選擇</div>
+            </div>
+            <div class="faction-box box-rainforest" onclick="selectFaction('rainforest')">
+                <div style="font-size: 1.5rem;">雨林</div>
+                <div id="status-rainforest" class="status">可選擇</div>
+            </div>
+            <div class="faction-box box-river" onclick="selectFaction('river')">
+                <div style="font-size: 1.5rem;">河川</div>
+                <div id="status-river" class="status">可選擇</div>
+            </div>
+            <div class="faction-box box-ocean" onclick="selectFaction('ocean')">
+                <div style="font-size: 1.5rem;">海洋</div>
+                <div id="status-ocean" class="status">可選擇</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="char-screen" class="screen">
+        <h1 style="margin-bottom: 10px; font-weight: 900;">選擇守護生物</h1>
+        <p style="color: #64748b; margin-bottom: 20px;">左右滑動查看技能</p>
+        
+        <div id="char-countdown" style="margin-bottom: 15px; color: var(--primary); font-weight: bold; display: none;">即將開始遊戲... <span id="c-secs">5</span>s</div>
+        
+        <div class="carousel-container">
+            <button class="carousel-btn" onclick="changeChar(-1)">❮</button>
+            <div id="char-card-container">
+                <!-- 卡牌動態生成 -->
+            </div>
+            <button class="carousel-btn" onclick="changeChar(1)">❯</button>
+        </div>
+
+        <button id="confirm-char-btn" class="btn-primary" style="width: 200px; margin-top: 40px;" onclick="confirmCharacter()">確認選擇</button>
+        <div id="waiting-others" style="margin-top: 20px; color: var(--primary); font-weight: bold; display: none;">等待其他玩家...</div>
+    </div>
+
     <div id="game-screen" class="screen">
         <div class="game-header" id="player-status-bar"></div>
         <div id="turn-banner">輪到你了！請擲骰子</div>
@@ -206,11 +351,32 @@
         <div class="game-footer">
             <div id="dice-res" style="font-size: 1.2rem; font-weight: 900; color: var(--primary); background: white; padding: 5px 15px; border-radius: 20px; display: none;"></div>
             <button id="dice-btn" class="btn-primary" onclick="handleDiceRoll()">🎲</button>
-            <div id="turn-info">等待玩家行動...</div>
+            <div id="turn-info"><span id="turn-text">等待玩家行動...</span></div>
         </div>
         
         <!-- 獨立於容器外的退出按鈕 -->
         <button id="exit-btn" onclick="leaveRoom()">退出遊戲</button>
+    </div>
+
+    <!-- Modal 彈窗結構 -->
+    <div id="game-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div id="modal-title" class="modal-title">標題</div>
+            <div id="modal-body" class="modal-body">內容文字</div>
+            <div id="modal-footer" class="modal-footer">
+                <button id="modal-cancel" class="btn-cancel">取消</button>
+                <button id="modal-confirm" class="btn-primary">確認</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 勝利畫面結構 -->
+    <div id="victory-screen">
+        <div style="font-size: 5rem;">🏆</div>
+        <h1>恭喜獲勝！</h1>
+        <div id="winner-name" style="font-size: 1.5rem; font-weight: bold; margin-bottom: 2rem;">玩家名稱</div>
+        <p style="margin-bottom: 2rem;">你已達到 15 分，成為年度生態守護者！</p>
+        <button class="btn-primary" style="width: 200px; background: white; color: var(--primary);" onclick="window.location.reload()">回到大廳</button>
     </div>
 
     <script>
@@ -226,12 +392,37 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        const characters = {
+            forest: [
+                { id: 'owl', name: '貓頭鷹', faction: 'forest', type: '主動', cooldown: 3, skillDesc: '夜行俯衝 - 本回合可擲骰兩次，選擇其中一個點數移動。', lore: '夜行性鳥類，能控制鼠類數量，維持森林生態平衡。' },
+                { id: 'deer', name: '梅花鹿', faction: 'forest', type: '被動', cooldown: 0, skillDesc: '種子傳播 - 每次經過（或停在）任務格時，自動獲得 1 點森林資源。', lore: '台灣特有種，幫助種子散播，使植物能繁衍。' },
+                { id: 'squirrel', name: '松鼠', faction: 'forest', type: '主動', cooldown: 3, skillDesc: '秘藏堅果 - 不須擲骰，直接瞬移到最近的森林區資源格並結束移動。', lore: '愛藏堅果，意外成為森林的種子搬運者。' }
+            ],
+            rainforest: [
+                { id: 'frog', name: '樹蛙', faction: 'rainforest', type: '主動', cooldown: 3, skillDesc: '環境預警 - 開啟護盾，一回合內若踩到負面事件，完全免疫扣除資源的懲罰。', lore: '對環境變化極為敏感，是雨林健康的指標生物。' },
+                { id: 'parrot', name: '鸚鵡', faction: 'rainforest', type: '被動', cooldown: 0, skillDesc: '群聚呼喚 - 成功完成任何任務時，額外獲得 1 點隨機資源。', lore: '食果鳥類，幫助授粉與種子傳播。' },
+                { id: 'toucan', name: '大嘴鳥', faction: 'rainforest', type: '主動', cooldown: 4, skillDesc: '果實採集 - 將目前所在格子強制視為資源格，立刻獲得 2 點雨林資源。', lore: '雨林中的大胃王，能將大型種子散佈到遠方。' }
+            ],
+            river: [
+                { id: 'spoonbill', name: '黑面琵鷺', faction: 'river', type: '主動', cooldown: 3, skillDesc: '候鳥遷徙 - 不須擲骰，立刻返回任意一個河川區的起點基地。', lore: '衡量濕地生態健康的重要指標，面臨棲地縮減威脅。' },
+                { id: 'fish', name: '台灣鏟頜魚', faction: 'river', type: '被動', cooldown: 0, skillDesc: '逆流而上 - 完成複合任務時，所需消耗的資源總數自動減少 1 個。', lore: '俗稱苦花，生存狀況能反映溪流的生態健康。' },
+                { id: 'kingfisher', name: '翠鳥', faction: 'river', type: '主動', cooldown: 3, skillDesc: '精準捕獵 - 從目前總積分最高的一名對手身上，隨機偷取 1 個資源。', lore: '溪流邊的捕魚高手，需要清澈乾淨的水域。' }
+            ],
+            ocean: [
+                { id: 'coral', name: '珊瑚', faction: 'ocean', type: '被動', cooldown: 0, skillDesc: '海底森林 - 停留在海洋區格子上時，其他玩家得 1 分，你獲得 2 點海洋資源。', lore: '提供棲地給眾多海洋生物，被稱為海底森林。' },
+                { id: 'dolphin', name: '海豚', faction: 'ocean', type: '主動', cooldown: 2, skillDesc: '聲波探測 - 查看接下來 3 步內的所有隱藏事件。', lore: '聰明的群居動物，維持魚群健康與數量。' },
+                { id: 'turtle', name: '海龜', faction: 'ocean', type: '被動', cooldown: 0, skillDesc: '長壽守護 - 積分永遠不會因為任何負面事件而減少。', lore: '海洋中的長壽使者，見證著海洋的變遷與歷史。' }
+            ]
+        };
+
         let myId = Math.random().toString(36).substring(2, 9);
         let roomCode = null;
         let players = [];
         let currentTurnId = null;
         let isDev = false;
         let gameStarted = false;
+        let lastStatus = null;
+        let waitingTimer = null; // 用來管理大廳的倒數計時器
 
         // --- 地圖定義 ---
         const junctions = ["1,4", "7,4", "4,1", "4,7", "4,4"];
@@ -255,7 +446,16 @@
             db.ref('rooms/' + roomCode).set({
                 status: 'waiting',
                 currentTurn: '',
-                players: { [myId]: { id: myId, name: name, pos: "1,1", lastPos: "" } }
+                players: { 
+                    [myId]: { 
+                        id: myId, 
+                        name: name, 
+                        pos: "1,1", 
+                        lastPos: "",
+                        score: 0,
+                        resources: { forest: 1, rainforest: 0, river: 0, ocean: 0 }
+                    } 
+                }
             }).then(() => listenRoom());
         }
 
@@ -269,8 +469,18 @@
                 const pCount = Object.keys(snap.val().players || {}).length;
                 if(pCount >= 4) return;
                 const startPos = spawnPoints[pCount];
-                ref.child('players/' + myId).set({ id: myId, name: name, pos: startPos, lastPos: "" })
-                    .then(() => { roomCode = code; listenRoom(); });
+                const resTypes = ['forest', 'rainforest', 'river', 'ocean'];
+                const initialRes = { forest: 0, rainforest: 0, river: 0, ocean: 0 };
+                initialRes[resTypes[pCount]] = 1;
+
+                ref.child('players/' + myId).set({ 
+                    id: myId, 
+                    name: name, 
+                    pos: startPos, 
+                    lastPos: "",
+                    score: 0,
+                    resources: initialRes
+                }).then(() => { roomCode = code; listenRoom(); });
             });
         }
 
@@ -292,19 +502,33 @@
                     }
                     return;
                 }
-                players = Object.values(data.players || {});
+                players = Object.values(data.players || {}).sort((a, b) => a.id.localeCompare(b.id));
                 currentTurnId = data.currentTurn;
                 updateWaitingUI();
-                if(players.length === 4 && data.status === 'waiting') startCountdown();
-                if(data.status === 'started') {
-                    if(!gameStarted) {
-                        gameStarted = true;
-                        if(!data.currentTurn && players[0].id === myId) ref.update({ currentTurn: players[0].id });
-                        initGameUI();
-                    } else {
-                        syncGame();
+
+                // 根據狀態切換畫面
+                if(data.status !== lastStatus) {
+                    if (data.status !== 'waiting' && waitingTimer) { 
+                        clearInterval(waitingTimer); 
+                        waitingTimer = null; 
+                    }
+                    lastStatus = data.status;
+                    if(data.status === 'waiting') showScreen('waiting-room');
+                    if(data.status === 'factions') showScreen('faction-screen');
+                    if(data.status === 'char-select') showScreen('char-screen');
+                    if(data.status === 'started') {
+                        if(!gameStarted) {
+                            gameStarted = true;
+                            initGameUI();
+                        }
                     }
                 }
+
+                // 執行各階段邏輯更新 (不切換畫面)
+                if(data.status === 'waiting' && players.length === 4) startCountdown();
+                if(data.status === 'factions') initFactionUI(data.factions || {});
+                if(data.status === 'char-select') initCharUI(data.players);
+                if(data.status === 'started') syncGame();
             });
         }
 
@@ -319,32 +543,247 @@
         }
 
         function startCountdown() {
+            if (waitingTimer) return;
             const box = document.getElementById('countdown-box');
             box.style.display = 'block';
             let s = 10;
-            const t = setInterval(() => {
+            waitingTimer = setInterval(() => {
                 s--;
                 document.getElementById('secs').innerText = s;
-                if(s <= 0) { clearInterval(t); db.ref('rooms/' + roomCode).update({ status: 'started' }); }
+                if(s <= 0) { 
+                    clearInterval(waitingTimer); 
+                    waitingTimer = null;
+                    db.ref('rooms/' + roomCode).update({ status: 'factions' });
+                }
             }, 1000);
         }
 
         async function forceStart() {
+            if (waitingTimer) { clearInterval(waitingTimer); waitingTimer = null; }
             isDev = true;
             const ref = db.ref('rooms/' + roomCode);
+            const updates = { status: 'factions' };
             const dummies = [
-                { id: 'd2', name: '玩家 2', pos: "1,7", lastPos: "" },
-                { id: 'd3', name: '玩家 3', pos: "7,1", lastPos: "" },
-                { id: 'd4', name: '玩家 4', pos: "7,7", lastPos: "" }
+                { id: 'd2', name: '玩家 2', pos: "1,7", lastPos: "", score: 0, resources: { forest: 0, rainforest: 0, river: 0, ocean: 0 } },
+                { id: 'd3', name: '玩家 3', pos: "7,1", lastPos: "", score: 0, resources: { forest: 0, rainforest: 0, river: 0, ocean: 0 } },
+                { id: 'd4', name: '玩家 4', pos: "7,7", lastPos: "", score: 0, resources: { forest: 0, rainforest: 0, river: 0, ocean: 0 } }
             ];
-            for(let p of dummies) await ref.child('players/' + p.id).set(p);
-            startCountdown();
+            dummies.forEach(p => {
+                updates['players/' + p.id] = p;
+            });
+            await ref.update(updates);
         }
 
         // --- 遊戲畫面 ---
 
+        let currentFaction = null;
+        let charIndex = 0;
+        let myFactionChars = [];
+        let factionCountdownStarted = false;
+        let charCountdownStarted = false;
+
+        function selectFaction(f) {
+            const ref = db.ref(`rooms/${roomCode}/factions/${f}`);
+            ref.once('value', snap => {
+                if(snap.exists()) return;
+                // 取消之前的選擇 (如果有)
+                if(currentFaction) db.ref(`rooms/${roomCode}/factions/${currentFaction}`).remove();
+                ref.set(players.find(p => p.id === myId).name);
+                currentFaction = f;
+            });
+        }
+
+        function initFactionUI(factions) {
+            const types = ['forest', 'rainforest', 'river', 'ocean'];
+            let takenCount = 0;
+            const myName = players.find(p => p.id === myId).name;
+            const hasSelected = Object.values(factions).includes(myName);
+            
+            types.forEach(t => {
+                const box = document.querySelector(`.box-${t}`);
+                const status = document.getElementById(`status-${t}`);
+                const owner = factions[t];
+                
+                box.classList.remove('taken', 'mine');
+                if(owner) {
+                    takenCount++;
+                    status.innerText = owner;
+                    box.classList.add('taken');
+                    if(owner === myName) {
+                        box.classList.add('mine');
+                    }
+                } else {
+                    status.innerText = "可選擇";
+                }
+            });
+
+            // 開發者模式下，只要自己選了就開始倒數；正常模式需滿 4 人
+            if((takenCount === 4 || (isDev && hasSelected)) && !factionCountdownStarted) {
+                factionCountdownStarted = true;
+                const banner = document.getElementById('faction-countdown');
+                banner.style.display = 'block';
+                let s = 5;
+                const t = setInterval(() => {
+                    s--;
+                    document.getElementById('f-secs').innerText = s;
+                    if(s <= 0) {
+                        clearInterval(t);
+                        const realPlayer = players.find(p => !p.id.startsWith('d'));
+                        if(realPlayer && realPlayer.id === myId) {
+                            db.ref('rooms/' + roomCode).update({ status: 'char-select' });
+                        }
+                    }
+                }, 1000);
+            }
+        }
+
+        async function autoCompleteDevSelection() {
+            // 此函式現在整合進 confirmCharacter 中
+        }
+
+        function startGameInitialization(allPlayers, factions) {
+            const pArr = Object.values(allPlayers).sort((a,b) => a.id.localeCompare(b.id));
+            const updates = { status: 'started', currentTurn: pArr[0].id };
+            
+            pArr.forEach((p, idx) => {
+                const startPos = spawnPoints[idx];
+                updates[`players/${p.id}/pos`] = startPos;
+                
+                const res = { forest: 0, rainforest: 0, river: 0, ocean: 0 };
+                let faction = p.faction;
+                if(!faction) {
+                    for(let f in factions) {
+                        if(factions[f] === p.name) {
+                            faction = f;
+                            break;
+                        }
+                    }
+                }
+                if(faction) res[faction] = 1;
+                updates[`players/${p.id}/faction`] = faction;
+                updates[`players/${p.id}/resources`] = res;
+            });
+            
+            db.ref('rooms/' + roomCode).update(updates);
+        }
+
+        function initCharUI(allPlayers) {
+            const me = Object.values(allPlayers).find(p => p.id === myId);
+            
+            db.ref(`rooms/${roomCode}/factions`).once('value', snap => {
+                const factions = snap.val() || {};
+                for(let f in factions) {
+                    if(factions[f] === me.name) {
+                        currentFaction = f;
+                        break;
+                    }
+                }
+                myFactionChars = characters[currentFaction];
+                if(myFactionChars) renderCharCard();
+            });
+
+            const pArr = Object.values(allPlayers);
+            const chosenCount = pArr.filter(p => p.selectedChar).length;
+            
+            // 當所有人選完角色，啟動進入遊戲的 5 秒倒數
+            if(chosenCount === 4 && !charCountdownStarted) {
+                charCountdownStarted = true;
+                const banner = document.getElementById('char-countdown');
+                if (banner) banner.style.display = 'block';
+                let s = 5;
+                const t = setInterval(() => {
+                    s--;
+                    const secsEl = document.getElementById('c-secs');
+                    if (secsEl) secsEl.innerText = s;
+                    if(s <= 0) {
+                        clearInterval(t);
+                        // 確保由真實玩家負責觸發遊戲開始
+                        const realPlayer = players.find(p => !p.id.startsWith('d'));
+                        if(realPlayer && realPlayer.id === myId) {
+                            db.ref(`rooms/${roomCode}/factions`).once('value', fSnap => {
+                                startGameInitialization(allPlayers, fSnap.val());
+                            });
+                        }
+                    }
+                }, 1000);
+            }
+        }
+
+        function renderCharCard() {
+            const char = myFactionChars[charIndex];
+            const container = document.getElementById('char-card-container');
+            const factionNames = { forest: '森林', rainforest: '雨林', river: '河川', ocean: '海洋' };
+            
+            container.innerHTML = `
+                <div class="char-card ${char.faction}">
+                    <div class="char-img" style="background-image: url('./images/char-${char.id}.jpg')">
+                        <div class="faction-tag">${factionNames[char.faction]}</div>
+                        <div class="name-badge" style="color: var(--primary)">${char.name}</div>
+                    </div>
+                    <div class="char-desc">
+                        <div class="skill-title">${char.type}技能 ${char.cooldown ? `(CD:${char.cooldown})` : ''}</div>
+                        <div class="skill-desc">${char.skillDesc}</div>
+                        <div class="lore-text">${char.lore}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function changeChar(dir) {
+            if (!myFactionChars || myFactionChars.length === 0) return;
+            charIndex = (charIndex + dir + myFactionChars.length) % myFactionChars.length;
+            renderCharCard();
+        }
+
+        async function confirmCharacter() {
+            const char = myFactionChars[charIndex];
+            document.getElementById('confirm-char-btn').style.display = 'none';
+            document.getElementById('waiting-others').style.display = 'block';
+            
+            await db.ref(`rooms/${roomCode}/players/${myId}`).update({ selectedChar: char.id });
+
+            // 開發者模式：自動幫 Dummy 選
+            if(isDev) {
+                const snap = await db.ref(`rooms/${roomCode}`).once('value');
+                const data = snap.val();
+                const factions = data.factions || {};
+                const playersObj = data.players;
+                const types = ['forest', 'rainforest', 'river', 'ocean'];
+                const availableFactions = types.filter(t => !factions[t]);
+                
+                let fIdx = 0;
+                const updates = {};
+                for(let pid in playersObj) {
+                    if(pid !== myId && !playersObj[pid].selectedChar) {
+                        const f = availableFactions[fIdx++];
+                        if(!f) continue;
+                        const charList = characters[f];
+                        const randomChar = charList[Math.floor(Math.random() * charList.length)];
+                        
+                        updates[`factions/${f}`] = playersObj[pid].name;
+                        updates[`players/${pid}/selectedChar`] = randomChar.id;
+                        updates[`players/${pid}/faction`] = f;
+                    }
+                }
+                if(Object.keys(updates).length > 0) {
+                    await db.ref(`rooms/${roomCode}`).update(updates);
+                }
+                // 此處不再呼叫 startGameInitialization，而是交由 initCharUI 的倒數邏輯處理
+            }
+        }
+
         function initGameUI() {
             showScreen('game-screen');
+            if(isDev) {
+                const cheat = document.createElement('button');
+                cheat.className = 'dev-cheat-btn';
+                cheat.innerText = '+10分';
+                cheat.onclick = () => {
+                    const p = players.find(pl => pl.id === myId);
+                    db.ref(`rooms/${roomCode}/players/${myId}`).update({ score: (p.score || 0) + 10 });
+                };
+                document.getElementById('game-screen').appendChild(cheat);
+            }
             generateBoard();
             initCamera();
             syncGame();
@@ -369,12 +808,22 @@
 
                 if(junctions.includes(id)) {
                     tile.classList.add('junction');
-                    tile.innerText = "岔路";
+                    tile.innerText = "任務";
+                } else if(id === "4,4") {
+                    tile.classList.add('center');
+                    tile.innerText = "事件";
+                } else if(spawnPoints.includes(id)) {
+                    tile.classList.add('spawn');
+                    tile.innerText = "基地";
                 } else {
                     let eco = "";
                     for(let key in ecosystems) if(ecosystems[key].includes(id)) eco = key;
-                    tile.classList.add(eco);
-                    tile.innerText = eco.charAt(0).toUpperCase();
+                    if(eco) {
+                        tile.classList.add(eco);
+                        tile.innerText = eco.charAt(0).toUpperCase();
+                    } else {
+                        tile.innerText = "";
+                    }
                 }
                 boardEl.appendChild(tile);
             });
@@ -393,21 +842,31 @@
         function syncGame() {
             const bar = document.getElementById('player-status-bar');
             if (!bar) return;
-            bar.innerHTML = players.map((p, i) => `
-                <div class="player-card ${p.id === currentTurnId ? 'active-turn' : ''}">
-                    <div style="font-weight:900;">${p.name}</div>
-                    <div>位置: ${p.pos}</div>
-                </div>
-            `).join('');
+            
+            console.log("Syncing Game - Current Turn ID:", currentTurnId, "Players:", players);
 
-            players.forEach((p, i) => {
-                const wrapper = document.getElementById(`pawn-wrapper-${p.id}`);
-                if(wrapper) {
-                    const [r, c] = p.pos.split(',').map(Number);
-                    wrapper.style.left = ((c-1) * 14.28) + '%';
-                    wrapper.style.top = ((r-1) * 14.28) + '%';
-                }
-            });
+            const resIcons = { forest: "🌲", rainforest: "🌴", river: "💧", ocean: "🌊" };
+
+            // 更新 HUD (玩家卡片)
+            bar.innerHTML = players.map((p, i) => {
+                const res = p.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 };
+                const isActive = p.id === currentTurnId;
+                return `
+                    <div class="player-card ${isActive ? 'active-turn' : ''}">
+                        <div style="font-weight:900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: ${isActive ? 'var(--primary)' : 'inherit'}">
+                            ${isActive ? '▶ ' : ''}${p.name || '玩家'}
+                        </div>
+                        <div class="score">${p.score || 0} pts</div>
+                        <div class="resources">
+                            ${Object.entries(res).map(([key, val]) => `
+                                <div class="res-item">${resIcons[key]} ${val}</div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            syncPawns();
 
             const isMyTurn = myId === currentTurnId;
             const canAct = isMyTurn || isDev;
@@ -416,7 +875,29 @@
             
             const currentPlayer = players.find(p => p.id === currentTurnId);
             const playerName = currentPlayer ? currentPlayer.name : "載入中...";
-            document.getElementById('turn-info').innerText = isMyTurn ? "輪到你了！" : `等待 ${playerName} 行動...`;
+            
+            console.log("Current Player Found:", currentPlayer);
+
+            const turnTextEl = document.getElementById('turn-text');
+            if (turnTextEl) {
+                turnTextEl.innerText = isMyTurn ? "輪到你了！" : `等待 ${playerName} 行動...`;
+            }
+            
+            // 檢查勝利條件 (放在這裡確保每次同步都檢查)
+            players.forEach(p => {
+                if(p.score >= 15) showVictory(p.name);
+            });
+        }
+
+        function syncPawns() {
+            players.forEach((p, i) => {
+                const wrapper = document.getElementById(`pawn-wrapper-${p.id}`);
+                if(wrapper) {
+                    const [r, c] = p.pos.split(',').map(Number);
+                    wrapper.style.left = ((c-1) * 14.28) + '%';
+                    wrapper.style.top = ((r-1) * 14.28) + '%';
+                }
+            });
         }
 
         // --- 移動與岔路邏輯 ---
@@ -445,10 +926,6 @@
 
             const activeP = players.find(p => p.id === currentTurnId);
             await moveSequence(activeP, finalRoll);
-
-            const idx = players.findIndex(p => p.id === currentTurnId);
-            const nextId = players[(idx + 1) % players.length].id;
-            db.ref('rooms/' + roomCode).update({ currentTurn: nextId });
             
             btn.disabled = false;
             res.style.display = 'none';
@@ -477,6 +954,126 @@
                 await db.ref(`rooms/${roomCode}/players/${player.id}`).update({ pos: currentPos, lastPos: lastPos });
                 await new Promise(r => setTimeout(r, 600)); // 移動動畫
             }
+
+            // 走完步數，觸發格子效果
+            // 只有發起擲骰的人負責觸發效果與換手
+            await triggerTileEffect(player, currentPos);
+        }
+
+        async function triggerTileEffect(player, pos) {
+            const pRef = db.ref(`rooms/${roomCode}/players/${player.id}`);
+            const pData = (await pRef.once('value')).val();
+            let resources = pData.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 };
+            let score = pData.score || 0;
+            const resNames = { forest: "森林", rainforest: "雨林", river: "河川", ocean: "海洋" };
+
+            // 判斷格子類型
+            let ecoType = "";
+            for(let key in ecosystems) if(ecosystems[key].includes(pos)) ecoType = key;
+
+            if (pos === "4,4") {
+                // 中央事件格
+                const events = [
+                    { title: "生態大爆發", body: "這片土地充滿生機！全體資源 +2。", effect: () => {
+                        Object.keys(resources).forEach(k => resources[k] += 2);
+                    }},
+                    { title: "氣候變遷警告", body: "極端天氣來襲，隨機失去 2 個資源。", effect: () => {
+                        for(let i=0; i<2; i++) {
+                            const keys = Object.keys(resources).filter(k => resources[k] > 0);
+                            if(keys.length > 0) resources[keys[Math.floor(Math.random() * keys.length)]]--;
+                        }
+                    }},
+                    { title: "稀有物種發現", body: "你發現了絕跡已久的物種！獲得 2 點積分。", effect: () => {
+                        score += 2;
+                    }}
+                ];
+                const evt = events[Math.floor(Math.random() * events.length)];
+                evt.effect();
+                await showModal(evt.title, evt.body, false);
+            } else if (junctions.includes(pos)) {
+                // 任務格
+                const availableRes = Object.keys(resources).filter(k => resources[k] >= 2);
+                
+                if (availableRes.length > 0) {
+                    const targetRes = availableRes[0];
+                    const confirmed = await showModal(
+                        "環境保育任務",
+                        `這裡需要你的幫助！是否消耗 2 個 ${resNames[targetRes]} 資源來修復棲息地？（可獲得 3 點積分）`,
+                        true
+                    );
+                    if (confirmed) {
+                        resources[targetRes] -= 2;
+                        score += 3;
+                        await showModal("任務成功", "感謝你的貢獻，生態環境得到了改善！", false);
+                    }
+                } else {
+                    await showModal("環境觀測站", "這裡是重要的生態節點。如果你有足夠的資源（2個相同類型），可以在此執行保育任務。", false);
+                }
+            } else if (ecoType) {
+                // 資源格
+                resources[ecoType] += 2;
+                await showModal("資源採集", `你在${resNames[ecoType]}區域收集到了 2 個自然資源！`, false);
+            } else if (spawnPoints.includes(pos)) {
+                // 基地
+                const resKeys = Object.keys(resources);
+                const randomRes = resKeys[Math.floor(Math.random() * resKeys.length)];
+                resources[randomRes]++;
+                await showModal("回到基地", `在基地休整期間，你獲得了 1 個 ${resNames[randomRes]} 資源。`, false);
+            } else {
+                // 普通格 - 隨機小事件
+                if (Math.random() < 0.25) {
+                    const randomEvents = [
+                        { title: "拾獲垃圾", body: "你順手清理了路邊的垃圾，獲得 1 點積分！", effect: () => score++ },
+                        { title: "迷路的小動物", body: "你引導迷路的小動物回到巢穴，獲得 1 點積分！", effect: () => score++ },
+                        { title: "發現水源", body: "你發現了一處乾淨的水源，獲得 1 個河川資源。", effect: () => resources.river++ }
+                    ];
+                    const evt = randomEvents[Math.floor(Math.random() * randomEvents.length)];
+                    evt.effect();
+                    await showModal(evt.title, evt.body, false);
+                }
+            }
+
+            // 更新資料並換手
+            await pRef.update({ resources, score });
+            await switchTurn(player.id);
+        }
+
+        async function switchTurn(currentId) {
+            const idx = players.findIndex(p => p.id === currentId);
+            const nextIdx = (idx + 1) % players.length;
+            const nextPlayer = players[nextIdx];
+            const currentPlayer = players[idx];
+
+            console.log("--- 回合切換偵錯 ---");
+            console.log("目前玩家 ID:", currentId, "名稱:", currentPlayer ? currentPlayer.name : "未知");
+            console.log("下一位玩家 ID:", nextPlayer.id, "名稱:", nextPlayer.name);
+            console.log("------------------");
+
+            await db.ref('rooms/' + roomCode).update({ currentTurn: nextPlayer.id });
+        }
+
+        function showModal(title, body, showCancel = true) {
+            return new Promise(resolve => {
+                const modal = document.getElementById('game-modal');
+                const t = document.getElementById('modal-title');
+                const b = document.getElementById('modal-body');
+                const cancel = document.getElementById('modal-cancel');
+                const confirm = document.getElementById('modal-confirm');
+
+                t.innerText = title;
+                b.innerText = body;
+                cancel.style.display = showCancel ? 'block' : 'none';
+                modal.style.display = 'flex';
+
+                confirm.onclick = () => { modal.style.display = 'none'; resolve(true); };
+                cancel.onclick = () => { modal.style.display = 'none'; resolve(false); };
+            });
+        }
+
+        function showVictory(name) {
+            const screen = document.getElementById('victory-screen');
+            document.getElementById('winner-name').innerText = name;
+            screen.style.display = 'flex';
         }
 
         function getNeighbors(pos) {
@@ -527,7 +1124,7 @@
                 document.documentElement.style.setProperty('--posX', posX + 'px');
                 document.documentElement.style.setProperty('--posY', posY + 'px');
                 document.documentElement.style.setProperty('--scale', scale);
-                syncGame();
+                syncPawns();
             };
 
             v.onmousedown = (e) => { isDown = true; startX = e.pageX; startY = e.pageY; };
