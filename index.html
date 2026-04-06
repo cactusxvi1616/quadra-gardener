@@ -2,394 +2,186 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>四域園丁 - 匹配大廳</title>
-    <!-- 引入 Firebase v8 SDK -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>四域園丁 - 2.5D 策略桌遊</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
     <style>
-        /* CSS 樣式直接寫在這裡 */
         :root {
             --primary: #10b981;
             --primary-dark: #059669;
-            --bg: #ecfdf5;
+            --bg: #f0fdf4;
             --text: #064e3b;
+            /* 2.5D 視角變數 (鎖定角度) */
+            --rotX: 60deg;
+            --rotZ: -45deg;
+            --posX: 0px;
+            --posY: 0px;
+            --scale: 1;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
         }
+
+        .screen { display: none; width: 100vw; height: 100vh; position: relative; }
+        .active-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
         .container {
-            background: white;
-            padding: 2rem;
-            border-radius: 1.5rem;
+            background: white; padding: 2rem; border-radius: 1.5rem;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 400px;
-            border: 4px solid #d1fae5;
-            text-align: center;
+            width: 90%; max-width: 400px; border: 4px solid #d1fae5; text-align: center;
         }
 
-        h1 {
-            color: var(--primary);
-            margin-bottom: 0.5rem;
-            font-weight: 900;
-            letter-spacing: -0.05em;
+        input { width: 100%; padding: 0.75rem; border: 2px solid #f3f4f6; border-radius: 0.75rem; margin-bottom: 1rem; outline: none; box-sizing: border-box; }
+        button { width: 100%; padding: 1rem; border: none; border-radius: 1rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+
+        #game-screen { background: radial-gradient(circle at center, #ecfdf5 0%, #d1fae5 100%); perspective: 2000px; }
+
+        /* 頂部狀態欄 */
+        .game-header { position: absolute; top: 20px; width: 90%; display: flex; justify-content: space-around; gap: 10px; z-index: 100; left: 5%; }
+        .player-card { flex: 1; background: rgba(255, 255, 255, 0.9); padding: 8px; border-radius: 12px; border: 2px solid transparent; text-align: center; font-size: 0.7rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.3s; }
+        .player-card.active-turn { border-color: var(--primary); box-shadow: 0 0 15px rgba(16, 185, 129, 0.6); transform: translateY(-5px); background: white; }
+
+        #turn-banner { position: absolute; top: 100px; background: var(--primary); color: white; padding: 10px 30px; border-radius: 50px; font-weight: 900; box-shadow: 0 10px 20px rgba(0,0,0,0.1); z-index: 100; display: none; }
+
+        /* 2.5D 棋盤容器 */
+        .viewport { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; cursor: grab; }
+        .viewport:active { cursor: grabbing; }
+
+        .board-3d {
+            width: 600px; height: 600px;
+            display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(7, 1fr); gap: 8px;
+            transform-style: preserve-3d;
+            transform: translate(var(--posX), var(--posY)) scale(var(--scale)) rotateX(var(--rotX)) rotateZ(var(--rotZ));
+            transition: transform 0.1s ease-out;
+            position: relative;
         }
 
-        p {
-            margin-top: 0;
-            color: #6b7280;
-            font-size: 0.9rem;
+        .tile { position: relative; width: 100%; height: 100%; border-radius: 8px; transform-style: preserve-3d; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; }
+        .tile::after { content: ""; position: absolute; width: 100%; height: 12px; background: rgba(0,0,0,0.2); bottom: -12px; left: 0; transform-origin: top; transform: rotateX(-90deg); border-radius: 0 0 6px 6px; }
+
+        .forest { background: #10b981; color: white; }
+        .rainforest { background: #064e3b; color: white; }
+        .river { background: #7dd3fc; color: #0369a1; }
+        .ocean { background: #1e40af; color: white; }
+        .junction { background: #f43f5e; color: white; border: 3px solid #fff; }
+
+        /* 棋子樣式 (黏在棋盤內) */
+        #pawns-layer { position: absolute; inset: 0; pointer-events: none; transform-style: preserve-3d; }
+        
+        .pawn-wrapper {
+            position: absolute; width: 14.28%; height: 14.28%;
+            display: flex; align-items: center; justify-content: center;
+            transform-style: preserve-3d;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        .input-group {
-            margin-bottom: 1.5rem;
-            text-align: left;
+        .pawn-body {
+            width: 40px; height: 40px;
+            background-size: cover; background-position: center;
+            border-radius: 10px; border: 3px solid white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            /* 反向旋轉保持直立 */
+            transform: translateZ(30px) rotateZ(calc(var(--rotZ) * -1)) rotateX(calc(var(--rotX) * -1));
         }
 
-        label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-            font-size: 0.85rem;
+        /* 棋子底部陰影 (平躺) */
+        .pawn-wrapper::after {
+            content: ""; position: absolute;
+            width: 30px; height: 15px;
+            background: radial-gradient(ellipse at center, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 70%);
+            bottom: 20%; left: 50%; transform: translateX(-50%);
+            z-index: -1;
         }
 
-        input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #f3f4f6;
-            border-radius: 0.75rem;
-            box-sizing: border-box;
-            outline: none;
-            transition: border-color 0.2s;
-        }
+        .pawn-0 .pawn-body { background-image: url('https://picsum.photos/seed/owl/100/100'); background-color: #ef4444; }
+        .pawn-1 .pawn-body { background-image: url('https://picsum.photos/seed/cat/100/100'); background-color: #3b82f6; }
+        .pawn-2 .pawn-body { background-image: url('https://picsum.photos/seed/fox/100/100'); background-color: #10b981; }
+        .pawn-3 .pawn-body { background-image: url('https://picsum.photos/seed/deer/100/100'); background-color: #f59e0b; }
 
-        input:focus {
-            border-color: var(--primary);
+        /* 岔路箭頭 */
+        .arrow-overlay {
+            position: absolute; inset: 0; pointer-events: auto; transform-style: preserve-3d; z-index: 500;
         }
+        .arrow-btn {
+            position: absolute; width: 40px; height: 40px;
+            background: white; color: var(--primary);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.8);
+            border: 3px solid var(--primary);
+            transform: translateZ(60px) rotateZ(calc(var(--rotZ) * -1)) rotateX(calc(var(--rotX) * -1));
+            animation: bounce 1s infinite alternate;
+        }
+        @keyframes bounce { from { transform: translateZ(60px) rotateZ(calc(var(--rotZ) * -1)) rotateX(calc(var(--rotX) * -1)) translateY(0); } to { transform: translateZ(60px) rotateZ(calc(var(--rotZ) * -1)) rotateX(calc(var(--rotX) * -1)) translateY(-10px); } }
 
-        button {
-            width: 100%;
-            padding: 1rem;
-            border: none;
-            border-radius: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.1s, background-color 0.2s;
-            margin-bottom: 0.75rem;
-        }
+        /* 底部控制區 */
+        .game-footer { position: absolute; bottom: 30px; z-index: 100; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        #dice-btn { width: 80px; height: 80px; border-radius: 20px; font-size: 2rem; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3); transition: transform 0.1s; }
+        .dice-rolling { animation: diceShake 0.1s infinite; }
+        @keyframes diceShake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(5deg); } 75% { transform: rotate(-5deg); } }
 
-        button:active {
-            transform: scale(0.98);
-        }
-
-        .btn-primary {
-            background-color: var(--primary);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: var(--primary-dark);
-        }
-
-        .btn-outline {
-            background-color: white;
-            border: 2px solid var(--primary);
-            color: var(--primary);
-        }
-
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 1.5rem 0;
-            color: #d1d5db;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-        }
-
-        .divider::before, .divider::after {
-            content: "";
-            flex: 1;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .divider span {
-            padding: 0 0.75rem;
-        }
-
-        .join-group {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .join-group input {
-            flex: 1;
-        }
-
-        .join-group button {
-            width: auto;
-            margin-bottom: 0;
-        }
-
-        /* 等待室樣式 */
-        #waiting-room, #game-started {
-            display: none;
-        }
-
-        .room-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            margin-bottom: 2rem;
-            text-align: left;
-        }
-
-        .room-code {
-            font-size: 2.5rem;
-            font-weight: 900;
-            color: var(--primary);
-            display: block;
-        }
-
-        .player-list {
-            margin-bottom: 2rem;
-        }
-
-        .player-item {
-            display: flex;
-            align-items: center;
-            padding: 1rem;
-            background: #f9fafb;
-            border: 2px solid #f3f4f6;
-            border-radius: 1rem;
-            margin-bottom: 0.5rem;
-            text-align: left;
-        }
-
-        .player-item.active {
-            background: #ecfdf5;
-            border-color: var(--primary);
-        }
-
-        .player-avatar {
-            width: 2.5rem;
-            height: 2.5rem;
-            background: #d1d5db;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 1rem;
-            font-weight: bold;
-            color: white;
-        }
-
-        .active .player-avatar {
-            background: var(--primary);
-        }
-
-        .countdown-box {
-            background: var(--primary);
-            color: white;
-            padding: 1.5rem;
-            border-radius: 1rem;
-            margin-top: 1rem;
-        }
-
-        .countdown-text {
-            font-size: 1.25rem;
-            font-weight: 900;
-        }
-
-        .error-msg {
-            color: #ef4444;
-            font-size: 0.85rem;
-            margin-top: 0.5rem;
-            font-weight: bold;
-        }
-
-        #game-started {
-            max-width: 600px;
-        }
-
-        .game-started-title {
-            font-size: 4rem;
-            font-weight: 900;
-            color: white;
-            background: var(--primary);
-            padding: 2rem;
-            border-radius: 2rem;
-            margin-bottom: 1rem;
-        }
+        #exit-btn { position: absolute; bottom: 20px; right: 20px; z-index: 200; background: rgba(255,255,255,0.8); color: #ef4444; border: 1px solid #fecaca; padding: 8px 15px; border-radius: 10px; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
-    <!-- 大廳介面 -->
-    <div id="lobby" class="container">
-        <h1>四域園丁</h1>
-        <p>4 人連線桌遊匹配大廳</p>
-
-        <div class="input-group">
-            <label>你的暱稱</label>
-            <input type="text" id="nickname" placeholder="輸入大名...">
+    <div id="lobby" class="screen active-screen">
+        <div class="container">
+            <h1 style="color: var(--primary); font-weight: 900;">四域園丁</h1>
+            <input type="text" id="nickname" placeholder="輸入暱稱...">
+            <button class="btn-primary" onclick="createRoom()">建立新房間</button>
+            <div style="margin: 1rem 0; color: #d1d5db;">OR</div>
+            <div style="display: flex; gap: 5px;">
+                <input type="text" id="room-input" placeholder="代碼" style="margin-bottom: 0;">
+                <button class="btn-primary" style="width: auto;" onclick="joinRoom()">加入</button>
+            </div>
+            <div id="lobby-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 10px;"></div>
         </div>
-
-        <button class="btn-primary" onclick="createRoom()">建立新房間</button>
-
-        <div class="divider"><span>或者</span></div>
-
-        <div class="join-group">
-            <input type="text" id="room-input" placeholder="輸入 4 碼代號">
-            <button class="btn-outline" onclick="joinRoom()">加入</button>
-        </div>
-
-        <div id="lobby-error" class="error-msg"></div>
     </div>
 
-    <!-- 等待室介面 -->
-    <div id="waiting-room" class="container">
-        <div class="room-info">
-            <div>
-                <span style="font-size: 0.75rem; font-weight: 900; color: #9ca3af; text-transform: uppercase;">正在等待玩家...</span>
-                <span id="display-room-code" class="room-code">#----</span>
+    <div id="waiting-room" class="screen">
+        <div class="container">
+            <h2 id="display-room-code" style="font-size: 2.5rem; color: var(--primary); margin: 0;">#----</h2>
+            <p>等待玩家加入 (4人開始)</p>
+            <div id="player-list" style="margin: 1.5rem 0; text-align: left;"></div>
+            <div id="countdown-box" style="display: none; background: var(--primary); color: white; padding: 1rem; border-radius: 1rem; font-weight: bold;">
+                準備開始... <span id="secs">10</span>s
             </div>
-            <button onclick="leaveRoom()" style="background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 0.75rem; font-weight: bold;">離開房間</button>
+            <button onclick="forceStart()" style="margin-top: 1rem; background: #f3f4f6; color: #9ca3af; font-size: 0.7rem;">🛠️ 開發者模式：強制開始</button>
+            <button onclick="leaveRoom()" style="margin-top: 0.5rem; background: #fee2e2; color: #ef4444; font-size: 0.8rem; border: 1px solid #fecaca;">退出房間</button>
         </div>
+    </div>
 
-        <div id="player-list" class="player-list">
-            <!-- 玩家清單會動態生成 -->
-        </div>
+    <div id="game-screen" class="screen">
+        <button id="exit-btn" onclick="leaveRoom()">退出遊戲</button>
+        <div class="game-header" id="player-status-bar"></div>
+        <div id="turn-banner">輪到你了！請擲骰子</div>
 
-        <div id="countdown-container" style="display: none;">
-            <div class="countdown-box">
-                <div id="countdown-msg" class="countdown-text">Game starting in 10 seconds!</div>
+        <div class="viewport" id="viewport">
+            <div class="board-3d" id="board">
+                <!-- 格子動態生成 -->
+                <div id="pawns-layer"></div>
+                <div id="arrow-layer" class="arrow-overlay"></div>
             </div>
         </div>
 
-        <div id="waiting-status" style="color: #9ca3af; font-size: 0.85rem; font-weight: bold; margin-bottom: 1rem;">
-            目前人數: <span id="player-count">0</span> / 4
-        </div>
-
-        <!-- 開發者模式按鈕 -->
-        <button onclick="forceStart()" style="background: #f3f4f6; color: #9ca3af; border: 1px dashed #d1d5db; padding: 0.5rem; border-radius: 0.5rem; font-size: 0.7rem; cursor: pointer; width: auto; margin: 0 auto; display: block;">
-            🛠️ 開發者模式：強制開始 (不限人數)
-        </button>
-    </div>
-
-    <!-- 遊戲主畫面 -->
-    <div id="game-screen" class="container" style="max-width: 600px; display: none;">
-        <div id="player-status-bar" style="display: flex; gap: 0.5rem; margin-bottom: 1rem; justify-content: space-around;">
-            <!-- 玩家狀態會動態生成 -->
-        </div>
-
-        <div class="board-container">
-            <div id="game-board" class="board">
-                <!-- 16 格棋盤會動態生成 -->
-            </div>
-        </div>
-
-        <div id="game-controls" style="margin-top: 1.5rem;">
-            <div id="dice-result" style="font-size: 1.5rem; font-weight: 900; color: var(--primary); margin-bottom: 0.5rem; height: 2rem;"></div>
-            <button id="roll-btn" class="btn-primary" onclick="rollDice()" style="display: none;">🎲 擲骰子</button>
-            <div id="turn-msg" style="font-weight: bold; color: #9ca3af;">等待他人行動...</div>
+        <div class="game-footer">
+            <div id="dice-res" style="font-size: 1.2rem; font-weight: 900; color: var(--primary); background: white; padding: 5px 15px; border-radius: 20px; display: none;"></div>
+            <button id="dice-btn" class="btn-primary" onclick="handleDiceRoll()">🎲</button>
+            <div id="turn-info" style="font-weight: bold; color: var(--text); background: rgba(255,255,255,0.8); padding: 5px 15px; border-radius: 20px;"></div>
         </div>
     </div>
-
-    <!-- 遊戲開始畫面 -->
-    <div id="game-started-msg" class="container" style="background: var(--primary); border: none; display: none;">
-        <div class="game-started-title">遊戲已開始！</div>
-        <p style="color: white; font-size: 1.2rem; font-weight: bold;">四域園丁正式集結，準備好守護這片土地了嗎？</p>
-        <button onclick="startGameUI()" style="background: white; color: var(--primary); margin-top: 2rem;">進入地圖</button>
-    </div>
-
-    <style>
-        /* 新增遊戲畫面樣式 */
-        .board-container {
-            position: relative;
-            width: 100%;
-            padding-bottom: 100%; /* 保持正方形 */
-        }
-
-        .board {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            grid-template-rows: repeat(5, 1fr);
-            gap: 4px;
-        }
-
-        .tile {
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.7rem;
-            font-weight: bold;
-            position: relative;
-            border: 2px solid rgba(0,0,0,0.05);
-        }
-
-        /* 格子顏色 */
-        .tile-resource { background-color: #d1fae5; color: #065f46; } /* 綠 */
-        .tile-event { background-color: #fef3c7; color: #92400e; }    /* 黃 */
-        .tile-task { background-color: #dbeafe; color: #1e40af; }     /* 藍 */
-
-        .pawn-container {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: center;
-            pointer-events: none;
-        }
-
-        .pawn {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            margin: 1px;
-            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        .status-card {
-            flex: 1;
-            padding: 0.5rem;
-            background: #f9fafb;
-            border-radius: 0.75rem;
-            border: 2px solid #f3f4f6;
-            font-size: 0.7rem;
-            text-align: center;
-        }
-
-        .status-card.active {
-            border-color: var(--primary);
-            background: #ecfdf5;
-            transform: scale(1.05);
-        }
-
-        .pawn-0 { background-color: #ef4444; } /* 紅 */
-        .pawn-1 { background-color: #3b82f6; } /* 藍 */
-        .pawn-2 { background-color: #10b981; } /* 綠 */
-        .pawn-3 { background-color: #f59e0b; } /* 橘 */
-    </style>
 
     <script>
-        // Firebase 配置 (保持不變)
         const firebaseConfig = {
             apiKey: "AIzaSyBnmMmSsxZ90Sw3HUOgwFGvzMUmQ7Gc2L8",
             authDomain: "quadra-gardener.firebaseapp.com",
@@ -397,236 +189,342 @@
             projectId: "quadra-gardener",
             storageBucket: "quadra-gardener.firebasestorage.app",
             messagingSenderId: "1039703566150",
-            appId: "1:1039703566150:web:a550c99d4e66abd887e747",
-            measurementId: "G-5Q4H969NXL"
+            appId: "1:1039703566150:web:a550c99d4e66abd887e747"
         };
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let myPlayerId = Math.random().toString(36).substring(2, 9);
-        let currentRoomCode = null;
-        let isStarting = false;
-        let playersData = [];
+        let myId = Math.random().toString(36).substring(2, 9);
+        let roomCode = null;
+        let players = [];
         let currentTurnId = null;
+        let isDev = false;
 
-        // 棋盤定義 (16格環狀)
-        const tileTypes = [
-            'resource', 'event', 'task', 'resource', 
-            'event', 'task', 'resource', 'event',
-            'task', 'resource', 'event', 'task',
-            'resource', 'event', 'task', 'resource'
-        ];
+        // --- 地圖定義 ---
+        const junctions = ["1,4", "7,4", "4,1", "4,7", "4,4"];
+        const spawnPoints = ["1,1", "1,7", "7,1", "7,7"];
+        const validTiles = [];
+        for(let r=1; r<=7; r++) for(let c=1; c<=7; c++) if(r===1 || r===7 || r===4 || c===1 || c===7 || c===4) validTiles.push(`${r},${c}`);
 
-        // 棋盤座標對應 (5x5 Grid)
-        const tileCoords = [
-            [1,1], [1,2], [1,3], [1,4], [1,5], // Top
-            [2,5], [3,5], [4,5],               // Right
-            [5,5], [5,4], [5,3], [5,2], [5,1], // Bottom
-            [4,1], [3,1], [2,1]                // Left
-        ];
+        const ecosystems = {
+            forest: ["1,1", "1,2", "1,3", "2,1", "3,1", "2,4", "3,4"],
+            rainforest: ["1,5", "1,6", "1,7", "2,7", "3,7", "4,5", "4,6"],
+            river: ["7,1", "7,2", "7,3", "6,1", "5,1", "4,2", "4,3"],
+            ocean: ["7,5", "7,6", "7,7", "6,7", "5,7", "5,4", "6,4"]
+        };
 
-        function showScreen(screenId) {
-            document.getElementById('lobby').style.display = 'none';
-            document.getElementById('waiting-room').style.display = 'none';
-            document.getElementById('game-started-msg').style.display = 'none';
-            document.getElementById('game-screen').style.display = 'none';
-            document.getElementById(screenId).style.display = 'block';
-        }
+        // --- 核心邏輯 ---
 
         function createRoom() {
             const name = document.getElementById('nickname').value.trim();
-            if (!name) return showError('請先輸入暱稱！');
-            const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+            if(!name) return;
+            roomCode = Math.floor(1000 + Math.random() * 9000).toString();
             db.ref('rooms/' + roomCode).set({
                 status: 'waiting',
                 currentTurn: '',
-                players: { [myPlayerId]: { id: myPlayerId, name: name, position: 0 } }
-            }).then(() => enterRoom(roomCode));
+                players: { [myId]: { id: myId, name: name, pos: "1,1", lastPos: "" } }
+            }).then(() => listenRoom());
         }
 
         function joinRoom() {
             const name = document.getElementById('nickname').value.trim();
             const code = document.getElementById('room-input').value.trim();
-            if (!name || !code) return showError('請輸入完整資訊！');
-            const roomRef = db.ref('rooms/' + code);
-            roomRef.once('value').then(snapshot => {
-                if (!snapshot.exists()) return showError('找不到房間！');
-                const data = snapshot.val();
-                if (Object.keys(data.players || {}).length >= 4) return showError('房間已滿！');
-                roomRef.child('players/' + myPlayerId).set({ id: myPlayerId, name: name, position: 0 })
-                    .then(() => enterRoom(code));
+            if(!name || !code) return;
+            const ref = db.ref('rooms/' + code);
+            ref.once('value', snap => {
+                if(!snap.exists()) return;
+                const pCount = Object.keys(snap.val().players || {}).length;
+                if(pCount >= 4) return;
+                const startPos = spawnPoints[pCount];
+                ref.child('players/' + myId).set({ id: myId, name: name, pos: startPos, lastPos: "" })
+                    .then(() => { roomCode = code; listenRoom(); });
             });
         }
 
-        function enterRoom(code) {
-            currentRoomCode = code;
+        function listenRoom() {
             showScreen('waiting-room');
-            document.getElementById('display-room-code').innerText = '#' + code;
-            const roomRef = db.ref('rooms/' + code);
-
-            roomRef.on('value', snapshot => {
-                const data = snapshot.val();
-                if (!data) return;
-                const players = data.players || {};
-                playersData = Object.values(players);
-                currentTurnId = data.currentTurn;
-                
-                updatePlayerUI(playersData);
-
-                if (playersData.length === 4 && data.status === 'waiting' && !isStarting) {
-                    startCountdown(code);
-                }
-
-                if (data.status === 'started') {
-                    // 如果還沒初始化回合，由第一個玩家初始化
-                    if (!data.currentTurn && playersData[0].id === myPlayerId) {
-                        roomRef.update({ currentTurn: playersData[0].id });
+            document.getElementById('display-room-code').innerText = '#' + roomCode;
+            const ref = db.ref('rooms/' + roomCode);
+            ref.on('value', snap => {
+                const data = snap.val();
+                if(!data) {
+                    if(roomCode) {
+                        ref.off();
+                        roomCode = null;
+                        players = [];
+                        currentTurnId = null;
+                        isDev = false;
+                        showScreen('lobby');
+                        document.getElementById('lobby-error').innerText = '房間已解散';
                     }
-                    showScreen('game-started-msg');
+                    return;
                 }
-
-                if (document.getElementById('game-screen').style.display === 'block') {
-                    syncGameUI();
-                }
-            });
-            roomRef.child('players/' + myPlayerId).onDisconnect().remove();
-        }
-
-        function startGameUI() {
-            showScreen('game-screen');
-            initBoard();
-            syncGameUI();
-        }
-
-        function initBoard() {
-            const boardEl = document.getElementById('game-board');
-            boardEl.innerHTML = '';
-            tileCoords.forEach((coord, i) => {
-                const tile = document.createElement('div');
-                tile.className = `tile tile-${tileTypes[i]}`;
-                tile.style.gridColumn = coord[1];
-                tile.style.gridRow = coord[0];
-                tile.innerHTML = `<span>${i}</span><div id="tile-pawn-${i}" class="pawn-container"></div>`;
-                boardEl.appendChild(tile);
-            });
-        }
-
-        function syncGameUI() {
-            // 更新玩家狀態欄
-            const statusBar = document.getElementById('player-status-bar');
-            statusBar.innerHTML = '';
-            playersData.forEach((p, i) => {
-                const isActive = p.id === currentTurnId;
-                const card = document.createElement('div');
-                card.className = `status-card ${isActive ? 'active' : ''}`;
-                card.innerHTML = `
-                    <div style="font-weight:bold; color:${isActive ? 'var(--primary)' : '#9ca3af'}">${p.name}</div>
-                    <div style="font-size:10px">位置: ${p.position}</div>
-                `;
-                statusBar.appendChild(card);
-            });
-
-            // 更新棋子位置
-            document.querySelectorAll('.pawn-container').forEach(c => c.innerHTML = '');
-            playersData.forEach((p, i) => {
-                const container = document.getElementById(`tile-pawn-${p.position}`);
-                if (container) {
-                    const pawn = document.createElement('div');
-                    pawn.className = `pawn pawn-${i}`;
-                    container.appendChild(pawn);
+                players = Object.values(data.players || {});
+                currentTurnId = data.currentTurn;
+                updateWaitingUI();
+                if(players.length === 4 && data.status === 'waiting') startCountdown();
+                if(data.status === 'started') {
+                    if(!data.currentTurn && players[0].id === myId) ref.update({ currentTurn: players[0].id });
+                    initGameUI();
                 }
             });
-
-            // 更新控制按鈕
-            const isMyTurn = myPlayerId === currentTurnId;
-            document.getElementById('roll-btn').style.display = isMyTurn ? 'block' : 'none';
-            document.getElementById('turn-msg').innerText = isMyTurn ? '輪到你了！' : `等待 ${playersData.find(p => p.id === currentTurnId)?.name || '他人'} 行動...`;
         }
 
-        function rollDice() {
-            const roll = Math.floor(Math.random() * 6) + 1;
-            const rollBtn = document.getElementById('roll-btn');
-            rollBtn.disabled = true;
-            document.getElementById('dice-result').innerText = `🎲 擲出了 ${roll}！`;
-
-            const me = playersData.find(p => p.id === myPlayerId);
-            const newPos = (me.position + roll) % 16;
-
-            // 更新 Firebase
-            const roomRef = db.ref('rooms/' + currentRoomCode);
-            
-            // 延遲一下讓玩家看清楚數字
-            setTimeout(() => {
-                // 找出下一個玩家的 ID (動態計算人數)
-                const myIndex = playersData.findIndex(p => p.id === myPlayerId);
-                const nextIndex = (myIndex + 1) % playersData.length;
-                const nextPlayerId = playersData[nextIndex].id;
-
-                roomRef.child('players/' + myPlayerId).update({ position: newPos });
-                roomRef.update({ currentTurn: nextPlayerId });
-                
-                document.getElementById('dice-result').innerText = '';
-                rollBtn.disabled = false;
-            }, 2000);
+        function updateWaitingUI() {
+            const list = document.getElementById('player-list');
+            list.innerHTML = players.map((p, i) => `
+                <div style="padding:10px; background:#f9fafb; border-radius:10px; margin-bottom:5px; display:flex; align-items:center; gap:10px;">
+                    <div style="width:30px; height:30px; border-radius:50%; background:${['#ef4444','#3b82f6','#10b981','#f59e0b'][i]};"></div>
+                    <span style="font-weight:bold;">${p.name} ${p.id === myId ? '(你)' : ''}</span>
+                </div>
+            `).join('');
         }
 
-        function forceStart() {
-            if (currentRoomCode) {
-                startCountdown(currentRoomCode);
-            }
-        }
-
-        // (其餘輔助函式保持不變: updatePlayerUI, startCountdown, leaveRoom, showError)
-        function updatePlayerUI(players) {
-            const listEl = document.getElementById('player-list');
-            const countEl = document.getElementById('player-count');
-            if (!listEl) return;
-            listEl.innerHTML = '';
-            countEl.innerText = players.length;
-            for (let i = 0; i < 4; i++) {
-                const player = players[i];
-                const div = document.createElement('div');
-                div.className = 'player-item' + (player ? ' active' : '');
-                div.innerHTML = `
-                    <div class="player-avatar" style="background:${player ? ['#ef4444','#3b82f6','#10b981','#f59e0b'][i] : '#d1d5db'}">${player ? player.name[0].toUpperCase() : (i + 1)}</div>
-                    <div style="flex: 1; font-weight: bold; color: ${player ? '#064e3b' : '#d1d5db'}">${player ? player.name : '等待加入...'}</div>
-                    ${player && player.id === myPlayerId ? '<span style="font-size: 10px; background: #d1fae5; color: #059669; padding: 2px 6px; border-radius: 10px;">你</span>' : ''}
-                `;
-                listEl.appendChild(div);
-            }
-        }
-
-        function startCountdown(code) {
-            isStarting = true;
-            const roomRef = db.ref('rooms/' + code);
-            roomRef.update({ status: 'starting' });
-            let count = 10;
-            document.getElementById('countdown-container').style.display = 'block';
-            const timer = setInterval(() => {
-                count--;
-                document.getElementById('countdown-msg').innerText = `Game starting in ${count} seconds!`;
-                if (count <= 0) {
-                    clearInterval(timer);
-                    roomRef.update({ status: 'started' });
-                }
+        function startCountdown() {
+            const box = document.getElementById('countdown-box');
+            box.style.display = 'block';
+            let s = 10;
+            const t = setInterval(() => {
+                s--;
+                document.getElementById('secs').innerText = s;
+                if(s <= 0) { clearInterval(t); db.ref('rooms/' + roomCode).update({ status: 'started' }); }
             }, 1000);
         }
 
-        function leaveRoom() {
-            if (currentRoomCode) {
-                db.ref('rooms/' + currentRoomCode + '/players/' + myPlayerId).remove();
-                location.reload();
+        async function forceStart() {
+            isDev = true;
+            const ref = db.ref('rooms/' + roomCode);
+            const dummies = [
+                { id: 'd2', name: '玩家 2', pos: "1,7", lastPos: "" },
+                { id: 'd3', name: '玩家 3', pos: "7,1", lastPos: "" },
+                { id: 'd4', name: '玩家 4', pos: "7,7", lastPos: "" }
+            ];
+            for(let p of dummies) await ref.child('players/' + p.id).set(p);
+            startCountdown();
+        }
+
+        // --- 遊戲畫面 ---
+
+        function initGameUI() {
+            showScreen('game-screen');
+            generateBoard();
+            initCamera();
+            syncGame();
+        }
+
+        function generateBoard() {
+            const boardEl = document.getElementById('board');
+            // 只保留圖層，其餘格子重新生成
+            const pawnsLayer = document.getElementById('pawns-layer');
+            const arrowLayer = document.getElementById('arrow-layer');
+            boardEl.innerHTML = '';
+            boardEl.appendChild(pawnsLayer);
+            boardEl.appendChild(arrowLayer);
+
+            validTiles.forEach(id => {
+                const [r, c] = id.split(',').map(Number);
+                const tile = document.createElement('div');
+                tile.id = `tile-${id}`;
+                tile.className = 'tile';
+                tile.style.gridRow = r;
+                tile.style.gridColumn = c;
+
+                if(junctions.includes(id)) {
+                    tile.classList.add('junction');
+                    tile.innerText = "岔路";
+                } else {
+                    let eco = "";
+                    for(let key in ecosystems) if(ecosystems[key].includes(id)) eco = key;
+                    tile.classList.add(eco);
+                    tile.innerText = eco.charAt(0).toUpperCase();
+                }
+                boardEl.appendChild(tile);
+            });
+
+            // 初始化棋子 DOM (放入 pawns-layer)
+            pawnsLayer.innerHTML = '';
+            players.forEach((p, i) => {
+                const wrapper = document.createElement('div');
+                wrapper.id = `pawn-wrapper-${p.id}`;
+                wrapper.className = `pawn-wrapper pawn-${i}`;
+                wrapper.innerHTML = `<div class="pawn-body"></div>`;
+                pawnsLayer.appendChild(wrapper);
+            });
+        }
+
+        function syncGame() {
+            const bar = document.getElementById('player-status-bar');
+            bar.innerHTML = players.map((p, i) => `
+                <div class="player-card ${p.id === currentTurnId ? 'active-turn' : ''}">
+                    <div style="font-weight:900;">${p.name}</div>
+                    <div>位置: ${p.pos}</div>
+                </div>
+            `).join('');
+
+            players.forEach((p, i) => {
+                const wrapper = document.getElementById(`pawn-wrapper-${p.id}`);
+                if(wrapper) {
+                    const [r, c] = p.pos.split(',').map(Number);
+                    wrapper.style.left = ((c-1) * 14.28) + '%';
+                    wrapper.style.top = ((r-1) * 14.28) + '%';
+                }
+            });
+
+            const isMyTurn = myId === currentTurnId;
+            const canAct = isMyTurn || isDev;
+            document.getElementById('dice-btn').style.display = canAct ? 'block' : 'none';
+            document.getElementById('turn-banner').style.display = isMyTurn ? 'block' : 'none';
+            document.getElementById('turn-info').innerText = isMyTurn ? "輪到你了！" : `等待 ${players.find(p=>p.id===currentTurnId)?.name} 行動...`;
+        }
+
+        // --- 移動與岔路邏輯 ---
+
+        async function handleDiceRoll() {
+            const btn = document.getElementById('dice-btn');
+            const res = document.getElementById('dice-res');
+            btn.disabled = true;
+            btn.classList.add('dice-rolling');
+            res.style.display = 'block';
+
+            let roll = 1;
+            const rollInterval = setInterval(() => {
+                roll = Math.floor(Math.random() * 4) + 1;
+                res.innerText = `🎲 擲骰中... ${roll}`;
+            }, 80);
+
+            await new Promise(r => setTimeout(r, 1000));
+            clearInterval(rollInterval);
+            
+            const finalRoll = Math.floor(Math.random() * 4) + 1;
+            btn.classList.remove('dice-rolling');
+            res.innerText = `🎲 擲出了 ${finalRoll}！`;
+            
+            await new Promise(r => setTimeout(r, 800));
+
+            const activeP = players.find(p => p.id === currentTurnId);
+            await moveSequence(activeP, finalRoll);
+
+            const idx = players.findIndex(p => p.id === currentTurnId);
+            const nextId = players[(idx + 1) % players.length].id;
+            db.ref('rooms/' + roomCode).update({ currentTurn: nextId });
+            
+            btn.disabled = false;
+            res.style.display = 'none';
+        }
+
+        async function moveSequence(player, steps) {
+            let currentPos = player.pos;
+            let lastPos = player.lastPos;
+
+            for(let i=0; i<steps; i++) {
+                const neighbors = getNeighbors(currentPos).filter(n => n !== lastPos);
+                
+                let nextPos;
+                if(neighbors.length > 1) {
+                    // 顯示箭頭並等待選擇
+                    nextPos = await askChoiceOnBoard(neighbors);
+                } else if(neighbors.length === 1) {
+                    nextPos = neighbors[0];
+                } else {
+                    break; // 無路可走
+                }
+
+                lastPos = currentPos;
+                currentPos = nextPos;
+
+                await db.ref(`rooms/${roomCode}/players/${player.id}`).update({ pos: currentPos, lastPos: lastPos });
+                await new Promise(r => setTimeout(r, 600)); // 移動動畫
             }
         }
 
-        function showError(msg) {
-            const errEl = document.getElementById('lobby-error');
-            if (errEl) {
-                errEl.innerText = msg;
-                setTimeout(() => { errEl.innerText = ''; }, 3000);
-            }
+        function getNeighbors(pos) {
+            const [r, c] = pos.split(',').map(Number);
+            const potential = [`${r-1},${c}`, `${r+1},${c}`, `${r},${c-1}`, `${r},${c+1}`];
+            return potential.filter(p => validTiles.includes(p));
         }
+
+        function askChoiceOnBoard(options) {
+            return new Promise(resolve => {
+                const layer = document.getElementById('arrow-layer');
+                layer.innerHTML = '';
+                options.forEach(opt => {
+                    const [r, c] = opt.split(',').map(Number);
+                    const btn = document.createElement('div');
+                    btn.className = 'arrow-btn';
+                    btn.style.left = ((c-1) * 14.28 + 3.5) + '%';
+                    btn.style.top = ((r-1) * 14.28 + 3.5) + '%';
+                    btn.innerText = '↑';
+                    
+                    // 根據方向旋轉箭頭
+                    const [currR, currC] = players.find(p=>p.id===currentTurnId).pos.split(',').map(Number);
+                    if(r < currR) btn.style.transform += ' rotate(0deg)';
+                    if(r > currR) btn.style.transform += ' rotate(180deg)';
+                    if(c < currC) btn.style.transform += ' rotate(-90deg)';
+                    if(c > currC) btn.style.transform += ' rotate(90deg)';
+
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        layer.innerHTML = '';
+                        resolve(opt);
+                    };
+                    layer.appendChild(btn);
+                });
+            });
+        }
+
+        // --- 攝影機控制 ---
+
+        function initCamera() {
+            const v = document.getElementById('viewport');
+            let isDown = false;
+            let startX, startY;
+            let posX = 0, posY = 0, scale = 1;
+            let initialDist = null;
+
+            const update = () => {
+                document.documentElement.style.setProperty('--posX', posX + 'px');
+                document.documentElement.style.setProperty('--posY', posY + 'px');
+                document.documentElement.style.setProperty('--scale', scale);
+                syncGame();
+            };
+
+            v.onmousedown = (e) => { isDown = true; startX = e.pageX; startY = e.pageY; };
+            v.ontouchstart = (e) => { 
+                if(e.touches.length === 2) initialDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                else { isDown = true; startX = e.touches[0].pageX; startY = e.touches[0].pageY; }
+            };
+
+            window.onmousemove = (e) => {
+                if(!isDown) return;
+                posX += e.pageX - startX; posY += e.pageY - startY;
+                startX = e.pageX; startY = e.pageY; update();
+            };
+            window.ontouchmove = (e) => {
+                if(e.touches.length === 2) {
+                    const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                    if(initialDist) { scale = Math.max(0.5, Math.min(2.5, scale * (dist/initialDist))); initialDist = dist; update(); }
+                } else if(isDown) {
+                    posX += e.touches[0].pageX - startX; posY += e.touches[0].pageY - startY;
+                    startX = e.touches[0].pageX; startY = e.touches[0].pageY; update();
+                }
+            };
+            window.onmouseup = window.ontouchend = () => { isDown = false; initialDist = null; };
+            v.onwheel = (e) => { e.preventDefault(); scale = Math.max(0.5, Math.min(2.5, scale * (e.deltaY > 0 ? 0.9 : 1.1))); update(); };
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
+            document.getElementById(id).classList.add('active-screen');
+        }
+
+        function leaveRoom() {
+            if(!roomCode) return;
+            if(!confirm('確定要解散房間並退出遊戲嗎？')) return;
+            const ref = db.ref('rooms/' + roomCode);
+            ref.remove();
+        }
+
+        window.onresize = syncGame;
     </script>
 </body>
 </html>
