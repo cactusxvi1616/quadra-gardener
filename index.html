@@ -168,6 +168,87 @@
             transform: scale(1.05) !important;
             background-color: #ff7875 !important;
         }
+
+        /* 事件卡樣式 */
+        #event-card-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            z-index: 9500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(3px);
+        }
+
+        #event-card-overlay.hidden {
+            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        #event-card-ui {
+            width: 320px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(15px);
+            border: 4px solid var(--primary);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            position: relative;
+            transform-origin: center;
+        }
+
+        #event-faction-tag {
+            position: absolute;
+            top: -15px; right: 20px;
+            background: #64748b;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        #event-image-area {
+            width: 100%;
+            height: 160px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            background-size: cover;
+            background-position: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        #event-name-box {
+            background: var(--primary);
+            color: white;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            transform: skewX(-5deg);
+        }
+
+        #event-title { margin: 0; font-size: 1.4rem; font-weight: 900; transform: skewX(5deg); }
+
+        #event-content { text-align: left; }
+        #event-desc { font-size: 1.1rem; font-weight: bold; color: #1e293b; margin-bottom: 10px; line-height: 1.4; }
+        #event-lore { font-size: 0.8rem; color: #64748b; font-style: italic; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+
+        .spin-in { animation: spinPopIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .spin-out { animation: spinPopOut 0.6s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards; }
+
+        @keyframes spinPopIn {
+            0% { transform: scale(0) rotate(-720deg); opacity: 0; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        @keyframes spinPopOut {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: scale(0) rotate(720deg); opacity: 0; }
+        }
         
         #turn-info {
             font-weight: bold;
@@ -441,6 +522,22 @@
                 <button id="skill-action-btn" onclick="useSkill()">✨ 發動技能</button>
             </div>
         </div>
+
+        <!-- 事件卡 Overlay -->
+        <div id="event-card-overlay" class="hidden" onclick="closeEventCard()">
+            <div id="event-card-ui">
+                <div id="event-faction-tag">通用</div>
+                <div id="event-image-area"></div>
+                <div id="event-name-box">
+                    <h2 id="event-title">事件名稱</h2>
+                </div>
+                <div id="event-content">
+                    <p id="event-desc">效果敘述載入中...</p>
+                    <div id="event-lore">故事介紹載入中...</div>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.7rem; color: #94a3b8;">點擊任意處跳過</div>
+            </div>
+        </div>
         
         <!-- 獨立於容器外的退出按鈕 -->
         <button id="exit-btn" onclick="leaveRoom()">退出遊戲</button>
@@ -502,6 +599,23 @@
                 { id: 'turtle', name: '海龜', faction: 'ocean', type: '被動', cooldown: 0, skillDesc: '長壽守護 - 積分永遠不會因為任何負面事件而減少。', lore: '海洋中的長壽使者，見證著海洋的變遷與歷史。' }
             ]
         };
+
+        const eventsData = [
+            { id: 'global_warming', name: '氣候暖化', faction: 'none', type: 'negative', desc: '全體玩家隨機失去 1 個資源。', lore: '極端氣候讓所有生態系都面臨嚴峻考驗。' },
+            { id: 'spring_rain', name: '春雨綿綿', faction: 'none', type: 'positive', desc: '全體玩家獲得 1 個隨機資源。', lore: '豐沛的雨水滋潤了大地，萬物復甦。' },
+            { id: 'volunteer_day', name: '志願者日', faction: 'none', type: 'positive', desc: '全體玩家的下一次任務，完成時額外獲得 2 點積分。', lore: '大批志工湧入幫忙，讓復育工作事半功倍。' },
+            { id: 'typhoon', name: '強烈颱風', faction: 'none', type: 'negative', desc: '全體玩家下一次的擲骰點數最高只能移動 1 步。', lore: '狂風暴雨阻礙了所有人的行動。' },
+            { id: 'eco_edu', name: '生態教育', faction: 'none', type: 'positive', desc: '目前積分最低的玩家獲得 2 點積分。', lore: '教育扎根，讓落後地區的保育意識抬頭。' },
+            { id: 'eco_tourism', name: '生態旅遊', faction: 'none', type: 'positive', desc: '發動者獲得 1 點積分，但下回合暫停行動一次。', lore: '推廣旅遊能帶來關注，但也需要時間管控人流。' },
+            { id: 'illegal_log', name: '盜伐危機', faction: 'forest', type: 'negative', desc: '全體失去 1 個森林資源。', lore: '非法砍伐嚴重破壞了棲地。' },
+            { id: 'reforest', name: '造林計畫', faction: 'forest', type: 'positive', desc: '發動者獲得 2 個森林資源。', lore: '種下希望的種子，讓樹林再次茂盛。' },
+            { id: 'wildfire', name: '森林野火', faction: 'rainforest', type: 'negative', desc: '發動者失去 2 個雨林資源，其他人失去 1 個。', lore: '乾燥引發的大火，迅速吞噬了多樣的生命。' },
+            { id: 'bio_discover', name: '物種發現', faction: 'rainforest', type: 'positive', desc: '發動者獲得 2 個任意資源。', lore: '在深處發現了新物種，振奮了保育界。' },
+            { id: 'water_pollute', name: '河川汙染', faction: 'river', type: 'negative', desc: '全體失去 1 個河川資源。', lore: '工業廢水排入，影響了水生生物。' },
+            { id: 'river_clean', name: '淨溪活動', faction: 'river', type: 'positive', desc: '發動者獲得 1 個河川資源與 1 點積分。', lore: '清除河道垃圾，還給魚兒乾淨的家。' },
+            { id: 'oil_spill', name: '漏油事件', faction: 'ocean', type: 'negative', desc: '目前積分最高的玩家失去 2 個海洋資源。', lore: '油輪意外洩漏，對海洋造成毀滅性打擊。' },
+            { id: 'whale_mig', name: '鯨豚洄游', faction: 'ocean', type: 'positive', desc: '全體玩家下次擲骰步數 +1。', lore: '壯觀的洄游季，讓所有人充滿幹勁。' }
+        ];
 
         let myId = Math.random().toString(36).substring(2, 9);
         let roomCode = null;
@@ -595,6 +709,16 @@
                     return;
                 }
                 players = Object.values(data.players || {}).sort((a, b) => a.id.localeCompare(b.id));
+                console.log("--- 實時玩家資料同步 ---");
+                console.table(players.map(p => ({
+                    ID: p.id,
+                    名稱: p.name,
+                    陣營: p.faction || '未定',
+                    角色: p.selectedChar || '未選',
+                    分數: p.score || 0,
+                    位置: p.pos
+                })));
+                
                 currentTurnId = data.currentTurn;
                 boardLayout = data.boardLayout;
                 updateWaitingUI();
@@ -736,6 +860,9 @@
 
         function startGameInitialization(allPlayers, factions) {
             const pArr = Object.values(allPlayers).sort((a,b) => a.id.localeCompare(b.id));
+            console.log("--- 遊戲初始化開始 ---");
+            console.log("原始玩家資料:", allPlayers);
+            console.log("陣營分配:", factions);
             
             // 生成隨機地圖配置
             const layout = {};
@@ -752,15 +879,21 @@
             const updates = { 
                 status: 'started', 
                 currentTurn: pArr[0].id,
-                boardLayout: layout 
+                boardLayout: layout,
+                globalTaskBonus: 0,
+                diceModifier: 0
             };
             
             pArr.forEach((p, idx) => {
                 const startPos = spawnPoints[idx];
                 updates[`players/${p.id}/pos`] = startPos;
+                updates[`players/${p.id}/lastPos`] = "";
+                updates[`players/${p.id}/score`] = p.score || 0;
                 updates[`players/${p.id}/skillCooldown`] = 0;
                 updates[`players/${p.id}/isSkillActive`] = false;
                 updates[`players/${p.id}/shieldActive`] = false;
+                updates[`players/${p.id}/skipNextTurn`] = false;
+                updates[`players/${p.id}/diceLimit`] = 0;
                 
                 const res = { forest: 0, rainforest: 0, river: 0, ocean: 0 };
                 let faction = p.faction;
@@ -775,9 +908,18 @@
                 if(faction) res[faction] = 1;
                 updates[`players/${p.id}/faction`] = faction;
                 updates[`players/${p.id}/resources`] = res;
+                
+                console.log(`玩家 ${p.name} (${p.id}) 初始化完成:`, {
+                    pos: startPos,
+                    faction: faction,
+                    resources: res,
+                    selectedChar: p.selectedChar
+                });
             });
             
-            db.ref('rooms/' + roomCode).update(updates);
+            db.ref('rooms/' + roomCode).update(updates).then(() => {
+                console.log("--- 遊戲初始化成功上傳 Firebase ---");
+            });
         }
 
         function initCharUI(allPlayers) {
@@ -1175,6 +1317,14 @@
         // --- 移動與岔路邏輯 ---
 
         async function handleDiceRoll() {
+            const activeP = players.find(p => p.id === currentTurnId);
+            if (activeP.skipNextTurn) {
+                await showModal("暫停行動", "由於事件影響，你本回合暫停行動一次。", false);
+                await db.ref(`rooms/${roomCode}/players/${myId}`).update({ skipNextTurn: false });
+                await switchTurn(myId);
+                return;
+            }
+
             const btn = document.getElementById('dice-btn');
             const res = document.getElementById('dice-res');
             btn.disabled = true;
@@ -1186,10 +1336,22 @@
 
             let finalRoll;
 
+            // 讀取全域與個人骰子修正
+            const roomSnap = await db.ref(`rooms/${roomCode}`).once('value');
+            const roomData = roomSnap.val();
+            const diceModifier = roomData.diceModifier || 0;
+            const diceLimit = activeP.diceLimit || 0;
+
             if (isOwlSkillActive) {
                 clearInterval(window.rollInterval);
-                const r1 = Math.floor(Math.random() * 4) + 1;
-                const r2 = Math.floor(Math.random() * 4) + 1;
+                let r1 = Math.floor(Math.random() * 4) + 1;
+                let r2 = Math.floor(Math.random() * 4) + 1;
+                
+                // 應用修正
+                if (diceLimit > 0) { r1 = Math.min(r1, diceLimit); r2 = Math.min(r2, diceLimit); }
+                r1 = Math.max(1, r1 + diceModifier);
+                r2 = Math.max(1, r2 + diceModifier);
+
                 res.innerText = `🎲 貓頭鷹技能：請選擇點數`;
                 
                 const choice = await new Promise(resolve => {
@@ -1222,15 +1384,23 @@
 
                 await new Promise(r => setTimeout(r, 1000));
                 clearInterval(rollInterval);
-                finalRoll = Math.floor(Math.random() * 4) + 1;
+                
+                let rawRoll = Math.floor(Math.random() * 4) + 1;
+                if (diceLimit > 0) rawRoll = Math.min(rawRoll, diceLimit);
+                finalRoll = Math.max(1, rawRoll + diceModifier);
             }
+
+            // 消耗修正
+            const diceUpdates = {};
+            if (diceModifier !== 0) diceUpdates['diceModifier'] = 0;
+            if (diceLimit > 0) diceUpdates[`players/${myId}/diceLimit`] = 0;
+            if (Object.keys(diceUpdates).length > 0) await db.ref(`rooms/${roomCode}`).update(diceUpdates);
 
             btn.classList.remove('dice-rolling');
             res.innerText = `🎲 擲出了 ${finalRoll}！`;
             
             await new Promise(r => setTimeout(r, 800));
 
-            const activeP = players.find(p => p.id === currentTurnId);
             await moveSequence(activeP, finalRoll);
             
             btn.disabled = false;
@@ -1273,6 +1443,14 @@
             await triggerTileEffect(player, currentPos);
         }
 
+        let eventCardResolver = null;
+        function closeEventCard() {
+            if (eventCardResolver) {
+                eventCardResolver();
+                eventCardResolver = null;
+            }
+        }
+
         async function triggerTileEffect(player, pos) {
             const pRef = db.ref(`rooms/${roomCode}/players/${player.id}`);
             const pData = (await pRef.once('value')).val();
@@ -1280,6 +1458,10 @@
             let score = pData.score || 0;
             const resNames = { forest: "森林", rainforest: "雨林", river: "河川", ocean: "海洋" };
             const charId = pData.selectedChar;
+
+            const roomSnap = await db.ref(`rooms/${roomCode}`).once('value');
+            const roomData = roomSnap.val();
+            const globalTaskBonus = roomData.globalTaskBonus || 0;
 
             // 判斷格子類型
             let ecoType = "";
@@ -1299,33 +1481,157 @@
                 await showModal("被動技能：海底森林", "你在海洋區停留，獲得 2 點海洋資源，並讓其他玩家各獲得 1 點積分！", false);
             }
 
-            if (pos === "4,4") {
-                // 中央事件格
-                const events = [
-                    { title: "生態大爆發", body: "這片土地充滿生機！全體資源 +2。", effect: () => {
-                        Object.keys(resources).forEach(k => resources[k] += 2);
-                    }},
-                    { title: "氣候變遷警告", body: "極端天氣來襲，隨機失去 2 個資源。", effect: () => {
-                        // 檢查護盾與海龜被動
-                        if (charId === 'turtle' || pData.shieldActive) {
-                            return "immune";
-                        }
-                        for(let i=0; i<2; i++) {
-                            const keys = Object.keys(resources).filter(k => resources[k] > 0);
-                            if(keys.length > 0) resources[keys[Math.floor(Math.random() * keys.length)]]--;
-                        }
-                    }},
-                    { title: "稀有物種發現", body: "你發現了絕跡已久的物種！獲得 2 點積分。", effect: () => {
-                        score += 2;
-                    }}
-                ];
-                const evt = events[Math.floor(Math.random() * events.length)];
-                const result = evt.effect();
-                if (result === "immune") {
-                    await showModal("技能發動！", "免疫負面效果！", false);
+            if (pos === "4,4" || tileType === 'event') {
+                // 事件格邏輯
+                const pool = eventsData.filter(e => e.faction === 'none' || e.faction === ecoType);
+                const evt = pool[Math.floor(Math.random() * pool.length)];
+                
+                // 顯示事件卡
+                const overlay = document.getElementById('event-card-overlay');
+                const ui = document.getElementById('event-card-ui');
+                const tag = document.getElementById('event-faction-tag');
+                const title = document.getElementById('event-title');
+                const desc = document.getElementById('event-desc');
+                const lore = document.getElementById('event-lore');
+                const img = document.getElementById('event-image-area');
+
+                const factionColors = { none: '#64748b', forest: '#10b981', rainforest: '#059669', river: '#3b82f6', ocean: '#2563eb' };
+                const factionNames = { none: '通用', forest: '森林', rainforest: '雨林', river: '河川', ocean: '海洋' };
+
+                tag.innerText = factionNames[evt.faction];
+                tag.style.background = factionColors[evt.faction];
+                title.innerText = evt.name;
+                desc.innerText = evt.desc;
+                lore.innerText = evt.lore;
+                img.style.backgroundImage = `url('https://picsum.photos/seed/${evt.id}/400/300')`;
+
+                overlay.classList.remove('hidden');
+                ui.classList.remove('spin-out');
+                ui.classList.add('spin-in');
+
+                // 等待 8 秒或點擊
+                await new Promise(resolve => {
+                    eventCardResolver = resolve;
+                    setTimeout(resolve, 8000);
+                });
+
+                ui.classList.remove('spin-in');
+                ui.classList.add('spin-out');
+                await new Promise(r => setTimeout(r, 600));
+                overlay.classList.add('hidden');
+
+                // 執行效果
+                let resultMsg = evt.desc;
+                const updates = {};
+                
+                // 檢查護盾 (負面事件且有護盾)
+                if (evt.type === 'negative' && (charId === 'turtle' || pData.shieldActive)) {
+                    resultMsg = "由於技能護盾，你免疫了此負面事件！";
                 } else {
-                    await showModal(evt.title, evt.body, false);
+                    switch(evt.id) {
+                        case 'global_warming':
+                            players.forEach(p => {
+                                let pRes = (p.id === player.id) ? resources : (p.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 });
+                                const keys = Object.keys(pRes).filter(k => pRes[k] > 0);
+                                if(keys.length > 0) {
+                                    pRes[keys[Math.floor(Math.random() * keys.length)]]--;
+                                    if (p.id !== player.id) updates[`players/${p.id}/resources`] = pRes;
+                                }
+                            });
+                            break;
+                        case 'spring_rain':
+                            players.forEach(p => {
+                                let pRes = (p.id === player.id) ? resources : (p.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 });
+                                const keys = Object.keys(pRes);
+                                pRes[keys[Math.floor(Math.random() * keys.length)]]++;
+                                if (p.id !== player.id) updates[`players/${p.id}/resources`] = pRes;
+                            });
+                            break;
+                        case 'volunteer_day':
+                            updates['globalTaskBonus'] = 2;
+                            break;
+                        case 'typhoon':
+                            updates['diceModifier'] = -2;
+                            players.forEach(p => updates[`players/${p.id}/diceLimit`] = 1);
+                            break;
+                        case 'eco_edu':
+                            const sorted = [...players].sort((a,b) => (a.score||0) - (b.score||0));
+                            const lowest = sorted[0];
+                            if (lowest.id === player.id) {
+                                score += 2;
+                            } else {
+                                updates[`players/${lowest.id}/score`] = (lowest.score || 0) + 2;
+                            }
+                            resultMsg += ` (${lowest.name} 獲得積分)`;
+                            break;
+                        case 'eco_tourism':
+                            score += 1;
+                            updates[`players/${player.id}/skipNextTurn`] = true;
+                            break;
+                        case 'illegal_log':
+                            players.forEach(p => {
+                                let pRes = (p.id === player.id) ? resources : (p.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 });
+                                if(pRes.forest > 0) pRes.forest--;
+                                if (p.id !== player.id) updates[`players/${p.id}/resources`] = pRes;
+                            });
+                            break;
+                        case 'reforest':
+                            resources.forest += 2;
+                            break;
+                        case 'wildfire':
+                            if(resources.rainforest > 0) resources.rainforest = Math.max(0, resources.rainforest - 2);
+                            players.forEach(p => {
+                                if(p.id !== player.id) {
+                                    const pRes = p.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 };
+                                    if(pRes.rainforest > 0) pRes.rainforest--;
+                                    updates[`players/${p.id}/resources`] = pRes;
+                                }
+                            });
+                            break;
+                        case 'bio_discover':
+                            const keys = Object.keys(resources);
+                            resources[keys[Math.floor(Math.random() * keys.length)]] += 2;
+                            break;
+                        case 'water_pollute':
+                            players.forEach(p => {
+                                let pRes = (p.id === player.id) ? resources : (p.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 });
+                                if(pRes.river > 0) pRes.river--;
+                                if (p.id !== player.id) updates[`players/${p.id}/resources`] = pRes;
+                            });
+                            break;
+                        case 'river_clean':
+                            resources.river += 1;
+                            score += 1;
+                            break;
+                        case 'oil_spill':
+                            const sortedH = [...players].sort((a,b) => (b.score||0) - (a.score||0));
+                            const highest = sortedH[0];
+                            let hRes = (highest.id === player.id) ? resources : (highest.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 });
+                            hRes.ocean = Math.max(0, hRes.ocean - 2);
+                            if(highest.id !== player.id) updates[`players/${highest.id}/resources`] = hRes;
+                            resultMsg += ` (${highest.name} 失去資源)`;
+                            break;
+                        case 'whale_mig':
+                            updates['diceModifier'] = 1;
+                            break;
+                    }
                 }
+
+                updates[`players/${player.id}/resources`] = resources;
+                updates[`players/${player.id}/score`] = score;
+                await db.ref(`rooms/${roomCode}`).update(updates);
+
+                // 顯示結果 Modal，8 秒自動關閉
+                await new Promise(resolve => {
+                    const modal = document.getElementById('game-modal');
+                    const timer = setTimeout(() => { modal.style.display = 'none'; resolve(); }, 8000);
+                    
+                    showModal("事件結果", resultMsg, false).then(() => {
+                        clearTimeout(timer);
+                        resolve();
+                    });
+                });
+
             } else if (junctions.includes(pos)) {
                 // 岔路複合任務格
                 const cost = (charId === 'fish') ? 1 : 2;
@@ -1335,12 +1641,16 @@
                     const targetRes = availableRes[0];
                     const confirmed = await showModal(
                         "環境保育任務",
-                        `這裡需要你的幫助！是否消耗 ${cost} 個 ${resNames[targetRes]} 資源來修復棲息地？（可獲得 3 點積分）`,
+                        `這裡需要你的幫助！是否消耗 ${cost} 個 ${resNames[targetRes]} 資源來修復棲息地？（可獲得 ${3 + globalTaskBonus} 點積分）`,
                         true
                     );
                     if (confirmed) {
                         resources[targetRes] -= cost;
-                        score += 3;
+                        score += (3 + globalTaskBonus);
+                        
+                        // 消耗全域加分
+                        if (globalTaskBonus > 0) await db.ref(`rooms/${roomCode}`).update({ globalTaskBonus: 0 });
+
                         // 鸚鵡被動：群聚呼喚
                         if (charId === 'parrot') {
                             const keys = Object.keys(resources);
@@ -1357,29 +1667,6 @@
                 // 資源格
                 resources[ecoType] += 2;
                 await showModal("資源採集", `你在${resNames[ecoType]}區域收集到了 2 個自然資源！`, false);
-            } else if (tileType === 'event') {
-                // 事件格
-                const randomEvents = [
-                    { title: "拾獲垃圾", body: "你順手清理了路邊的垃圾，獲得 1 點積分！", effect: () => score++ },
-                    { title: "迷路的小動物", body: "你引導迷路的小動物回到巢穴，獲得 1 點積分！", effect: () => score++ },
-                    { title: "發現水源", body: "你發現了一處乾淨的水源，獲得 1 個河川資源。", effect: () => resources.river++ },
-                    { title: "外來種入侵", body: "外來種威脅當地生態，失去 1 個隨機資源。", effect: () => {
-                        if (charId === 'turtle' || pData.shieldActive) return "immune";
-                        const keys = Object.keys(resources).filter(k => resources[k] > 0);
-                        if(keys.length > 0) resources[keys[Math.floor(Math.random() * keys.length)]]--;
-                    }},
-                    { title: "棲地破壞", body: "人類開發導致棲地縮減，失去 1 點積分。", effect: () => {
-                        if (charId === 'turtle' || pData.shieldActive) return "immune";
-                        if (score > 0) score--;
-                    }}
-                ];
-                const evt = randomEvents[Math.floor(Math.random() * randomEvents.length)];
-                const result = evt.effect();
-                if (result === "immune") {
-                    await showModal("技能發動！", "免疫負面效果！", false);
-                } else {
-                    await showModal(evt.title, evt.body, false);
-                }
             } else if (tileType === 'task') {
                 // 任務格
                 const cost = 2; // 任務格目前固定為 2
@@ -1388,12 +1675,16 @@
                     const targetRes = availableRes[Math.floor(Math.random() * availableRes.length)];
                     const confirmed = await showModal(
                         "生態任務",
-                        `是否消耗 ${cost} 個 ${resNames[targetRes]} 資源來執行保育任務？（可獲得 3 點積分）`,
+                        `是否消耗 ${cost} 個 ${resNames[targetRes]} 資源來執行保育任務？（可獲得 ${3 + globalTaskBonus} 點積分）`,
                         true
                     );
                     if (confirmed) {
                         resources[targetRes] -= cost;
-                        score += 3;
+                        score += (3 + globalTaskBonus);
+
+                        // 消耗全域加分
+                        if (globalTaskBonus > 0) await db.ref(`rooms/${roomCode}`).update({ globalTaskBonus: 0 });
+
                         // 鸚鵡被動：群聚呼喚
                         if (charId === 'parrot') {
                             const keys = Object.keys(resources);
