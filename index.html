@@ -187,6 +187,101 @@
             pointer-events: none !important;
         }
 
+        /* 任務卡樣式 */
+        #task-card-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            z-index: 9600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(3px);
+        }
+        #task-card-overlay.hidden {
+            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+        #task-card-ui {
+            width: 320px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(15px);
+            border: 4px solid var(--primary);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            position: relative;
+            transform-origin: center;
+        }
+
+        /* 複合任務卡樣式 */
+        #compound-card-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            z-index: 9700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(3px);
+        }
+        #compound-card-overlay.hidden {
+            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+        #compound-card-ui {
+            width: 320px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(15px);
+            border: 4px solid #7f1d1d;
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            position: relative;
+            transform-origin: center;
+        }
+        #task-faction-tag {
+            position: absolute;
+            top: -15px; right: 20px;
+            background: #64748b;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        #task-image-area {
+            width: 100%;
+            aspect-ratio: 7/5;
+            background: #f1f5f9;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            background-size: cover;
+            background-position: center;
+            border: 1px solid #e2e8f0;
+        }
+        #task-name-box {
+            background: var(--primary);
+            color: white;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            transform: skewX(-5deg);
+        }
+        #task-title { margin: 0; font-size: 1.3rem; font-weight: 900; transform: skewX(5deg); }
+        #task-content { text-align: left; }
+        .btn-disabled {
+            background: #cbd5e1 !important;
+            color: #94a3b8 !important;
+            cursor: not-allowed !important;
+            filter: grayscale(1);
+        }
+
         #event-card-ui {
             width: 320px;
             background: rgba(255, 255, 255, 0.85);
@@ -538,6 +633,48 @@
                 <div style="margin-top: 10px; font-size: 0.7rem; color: #94a3b8;">點擊任意處跳過</div>
             </div>
         </div>
+
+        <!-- 任務卡 Overlay -->
+        <div id="task-card-overlay" class="hidden">
+            <div id="task-card-ui">
+                <div id="task-faction-tag">陣營</div>
+                <div id="task-image-area"></div>
+                <div id="task-name-box">
+                    <h2 id="task-title">任務名稱</h2>
+                </div>
+                <div id="task-content">
+                    <div id="task-requirements" style="font-size: 1.2rem; font-weight: 900; color: var(--primary); margin-bottom: 5px;">需求：-</div>
+                    <div id="task-rewards" style="font-size: 1.1rem; font-weight: bold; color: #059669; margin-bottom: 15px;">獎勵積分：-</div>
+                    <p id="task-desc" style="font-size: 0.9rem; color: #475569; line-height: 1.5; font-weight: 300;">任務敘述載入中...</p>
+                </div>
+                <div id="task-footer" style="margin-top: 20px; display: flex; gap: 10px;">
+                    <button id="task-submit-btn" class="btn-primary" style="flex: 1; background: #3b82f6;">提交資源</button>
+                    <button id="task-cancel-btn" class="btn-primary" style="flex: 1; background: #ef4444;">忍痛放棄</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 複合任務卡 Overlay -->
+        <div id="compound-card-overlay" class="hidden">
+            <div id="compound-card-ui">
+                <div id="comp-faction-tag" style="position: absolute; top: -15px; right: 20px; background: #7f1d1d; color: white; padding: 5px 15px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">全球任務</div>
+                <div id="comp-image-area" style="width: 100%; aspect-ratio: 7/5; background: #f1f5f9; border-radius: 12px; margin-bottom: 15px; background-size: cover; background-position: center; border: 1px solid #e2e8f0;"></div>
+                <div id="comp-name-box" style="background: #7f1d1d; color: white; padding: 10px; border-radius: 10px; margin-bottom: 15px; transform: skewX(-5deg);">
+                    <h2 id="comp-title" style="margin: 0; font-size: 1.3rem; font-weight: 900; transform: skewX(5deg);">全球任務名稱</h2>
+                </div>
+                <div id="comp-content" style="text-align: left;">
+                    <div id="comp-requirements" style="font-size: 1rem; font-weight: bold; color: #7f1d1d; margin-bottom: 5px;">需求資源：</div>
+                    <div id="comp-req-list" style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px;"></div>
+                    <div id="comp-rewards" style="font-size: 1.1rem; font-weight: bold; color: #059669; margin-bottom: 15px;">獎勵積分：-</div>
+                    <p id="comp-desc" style="font-size: 0.9rem; color: #475569; line-height: 1.5; font-weight: 300;">任務敘述載入中...</p>
+                </div>
+                <div id="comp-footer" style="margin-top: 20px; display: flex; flex-direction: column; gap: 8px;">
+                    <button id="comp-submit-btn" class="btn-primary" style="background: #3b82f6;">提交資源</button>
+                    <button id="comp-continue-btn" class="btn-primary" style="background: #f59e0b;">拒絕並繼續前進</button>
+                    <button id="comp-stay-btn" class="btn-primary" style="background: #ef4444;">拒絕並停留於此</button>
+                </div>
+            </div>
+        </div>
         
         <!-- 獨立於容器外的退出按鈕 -->
         <button id="exit-btn" onclick="leaveRoom()">退出遊戲</button>
@@ -615,6 +752,38 @@
             { id: 'river_clean', name: '淨溪活動', faction: 'river', type: 'positive', desc: '發動者獲得 1 個河川資源與 1 點積分。', lore: '清除河道垃圾，還給魚兒乾淨的家。' },
             { id: 'oil_spill', name: '漏油事件', faction: 'ocean', type: 'negative', desc: '目前積分最高的玩家失去 2 個海洋資源。', lore: '油輪意外洩漏，對海洋造成毀滅性打擊。' },
             { id: 'whale_mig', name: '鯨豚洄游', faction: 'ocean', type: 'positive', desc: '全體玩家下次擲骰步數 +1。', lore: '壯觀的洄游季，讓所有人充滿幹勁。' }
+        ];
+
+        const tasksData = [
+            // 森林 (forest)
+            { id: 't_f1', name: '移除外來種', faction: 'forest', cost: 2, reward: 2, desc: '小花蔓澤蘭嚴重覆蓋了樹木，需要動員大量人力清除。' },
+            { id: 't_f2', name: '防治松材線蟲', faction: 'forest', cost: 3, reward: 2, desc: '為避免松樹枯萎病蔓延，需進行預防性投藥與病區隔離。' },
+            { id: 't_f3', name: '建立生態廊道', faction: 'forest', cost: 3, reward: 3, desc: '幫助野生動物安全跨越被公路切斷的棲地，減少路殺。' },
+            { id: 't_f4', name: '復育黑熊棲地', faction: 'forest', cost: 4, reward: 3, desc: '為了讓台灣黑熊有足夠的覓食與活動空間，需擴建保護區。' },
+            // 雨林 (rainforest)
+            { id: 't_r1', name: '建立樹冠橋', faction: 'rainforest', cost: 2, reward: 2, desc: '為樹棲動物搭建安全通道，避免棲地破碎化造成的孤立。' },
+            { id: 't_r2', name: '復育特有蘭花', faction: 'rainforest', cost: 3, reward: 2, desc: '保護珍稀的雨林蘭花，防止盜採並復育生長環境。' },
+            { id: 't_r3', name: '搶救走私動物', faction: 'rainforest', cost: 3, reward: 3, desc: '從非法交易者手中救下稀有鸚鵡，並協助牠們重返野外。' },
+            { id: 't_r4', name: '防治真菌病害', faction: 'rainforest', cost: 4, reward: 3, desc: '阻止毀滅性的壺菌在兩棲類間傳播，拯救樹蛙群落。' },
+            // 河川 (river)
+            { id: 't_v1', name: '護岸生態工法', faction: 'river', cost: 2, reward: 2, desc: '放棄水泥堤防，改用自然工法提供水生生物躲藏的空間。' },
+            { id: 't_v2', name: '清除塑膠微粒', faction: 'river', cost: 3, reward: 2, desc: '使用特製網具過濾水質，保護水生食物鏈免受塑膠毒害。' },
+            { id: 't_v3', name: '復育國寶鮭魚', faction: 'river', cost: 3, reward: 3, desc: '改善上游水質與水溫，讓櫻花鉤吻鮭能順利繁衍。' },
+            { id: 't_v4', name: '拆除廢棄攔沙壩', faction: 'river', cost: 4, reward: 3, desc: '恢復河川自然生態基流，讓洄游魚類能順利返鄉。' },
+            // 海洋 (ocean)
+            { id: 't_o1', name: '復育海草床', faction: 'ocean', cost: 2, reward: 2, desc: '種植海草以提供小魚庇護所，同時增加海洋的固碳能力。' },
+            { id: 't_o2', name: '清除廢棄漁網', faction: 'ocean', cost: 3, reward: 2, desc: '潛入海底割除俗稱「幽靈漁具」的廢棄網，拯救被困海龜。' },
+            { id: 't_o3', name: '建立海洋保護區', faction: 'ocean', cost: 3, reward: 3, desc: '劃設禁漁區，讓枯竭的沿海漁業資源得以自然恢復。' },
+            { id: 't_o4', name: '珊瑚白化救援', faction: 'ocean', cost: 4, reward: 3, desc: '建立海底珊瑚苗圃，將健康珊瑚培育後移植回受損區域。' }
+        ];
+
+        const compoundTasksData = [
+            { id: 'c1', name: '全球暖化防制', costs: { ocean: 4, forest: 3 }, reward: 6, desc: '應對極端氣候，需要保護海洋調節能力與擴大森林碳匯。' },
+            { id: 'c2', name: '跨國海廢清理', costs: { ocean: 4, river: 3 }, reward: 6, desc: '阻斷塑膠垃圾從陸地流入，並聯合清理遠洋垃圾帶。' },
+            { id: 'c3', name: '荒漠化防治', costs: { forest: 4, river: 3 }, reward: 6, desc: '在沙漠邊緣植樹造林，並引入水資源灌溉，阻止沙漠擴張。' },
+            { id: 'c4', name: '搶救酸雨危害', costs: { rainforest: 4, river: 3 }, reward: 6, desc: '工業排放導致大範圍酸雨，需要跨區域合作中和土壤與水質。' },
+            { id: 'c5', name: '保護雨林基因庫', costs: { rainforest: 4, forest: 3 }, reward: 6, desc: '建立跨國保護區網絡，守護珍貴的陸地多樣性基因庫。' },
+            { id: 'c6', name: '全球生態網救援', costs: { ocean: 4, river: 3, forest: 1 }, reward: 9, desc: '【史詩任務】面臨系統性生態崩潰，需要結合多方生態系的全面力量來挽救！' }
         ];
 
         let myId = Math.random().toString(36).substring(2, 9);
@@ -1319,24 +1488,24 @@
         async function handleDiceRoll() {
             const activeP = players.find(p => p.id === currentTurnId);
             if (activeP.skipNextTurn) {
-                await showModal("暫停行動", "由於事件影響，你本回合暫停行動一次。", false);
-                await db.ref(`rooms/${roomCode}/players/${myId}`).update({ skipNextTurn: false });
-                await switchTurn(myId);
+                await showModal("暫停行動", "由於事件影響，本回合暫停行動一次。", false);
+                // 【修復核心 1】：使用 activeP.id 解除暫停狀態並換手
+                await db.ref(`rooms/${roomCode}/players/${activeP.id}`).update({ skipNextTurn: false });
+                await switchTurn(activeP.id);
                 return;
             }
 
             const btn = document.getElementById('dice-btn');
             const res = document.getElementById('dice-res');
             btn.disabled = true;
-            hasRolled = true; // 標記已擲骰
-            updateSkillButton(); // 立即更新技能按鈕狀態
+            hasRolled = true;
+            updateSkillButton();
             
             btn.classList.add('dice-rolling');
             res.style.display = 'block';
 
             let finalRoll;
 
-            // 讀取全域與個人骰子修正
             const roomSnap = await db.ref(`rooms/${roomCode}`).once('value');
             const roomData = roomSnap.val();
             const diceModifier = roomData.diceModifier || 0;
@@ -1347,7 +1516,6 @@
                 let r1 = Math.floor(Math.random() * 4) + 1;
                 let r2 = Math.floor(Math.random() * 4) + 1;
                 
-                // 應用修正
                 if (diceLimit > 0) { r1 = Math.min(r1, diceLimit); r2 = Math.min(r2, diceLimit); }
                 r1 = Math.max(1, r1 + diceModifier);
                 r2 = Math.max(1, r2 + diceModifier);
@@ -1393,7 +1561,8 @@
             // 消耗修正
             const diceUpdates = {};
             if (diceModifier !== 0) diceUpdates['diceModifier'] = 0;
-            if (diceLimit > 0) diceUpdates[`players/${myId}/diceLimit`] = 0;
+            // 【修復核心 2】：正確清除當前玩家的 diceLimit
+            if (diceLimit > 0) diceUpdates[`players/${activeP.id}/diceLimit`] = 0;
             if (Object.keys(diceUpdates).length > 0) await db.ref(`rooms/${roomCode}`).update(diceUpdates);
 
             btn.classList.remove('dice-rolling');
@@ -1410,6 +1579,7 @@
         async function moveSequence(player, steps) {
             let currentPos = player.pos;
             let lastPos = player.lastPos;
+            let stoppedEarly = false;
 
             for(let i=0; i<steps; i++) {
                 const neighbors = getNeighbors(currentPos).filter(n => n !== lastPos);
@@ -1436,11 +1606,134 @@
 
                 await db.ref(`rooms/${roomCode}/players/${player.id}`).update({ pos: currentPos, lastPos: lastPos });
                 await new Promise(r => setTimeout(r, 600)); // 移動動畫
+
+                // 【新增：複合任務攔截】
+                if (junctions.includes(currentPos)) {
+                    const isLastStep = (i === steps - 1);
+                    const action = await triggerCompoundTaskCard(player, isLastStep);
+                    if (action === 'submit' || action === 'stay') {
+                        stoppedEarly = true;
+                        break; // 強制歸零剩餘步數，結束移動
+                    }
+                    // 若選擇 continue，則迴圈繼續
+                }
             }
 
-            // 走完步數，觸發格子效果
-            // 只有發起擲骰的人負責觸發效果與換手
-            await triggerTileEffect(player, currentPos);
+            // 結算與換手
+            if (!stoppedEarly && !junctions.includes(currentPos)) {
+                await triggerTileEffect(player, currentPos);
+            } else {
+                await switchTurn(player.id); // 複合任務已結算過，直接換手
+            }
+        }
+
+        async function triggerCompoundTaskCard(player, isLastStep) {
+            const task = compoundTasksData[Math.floor(Math.random() * compoundTasksData.length)];
+            const costs = { ...task.costs };
+            const pRef = db.ref(`rooms/${roomCode}/players/${player.id}`);
+            const pData = (await pRef.once('value')).val();
+            let resources = pData.resources || { forest: 0, rainforest: 0, river: 0, ocean: 0 };
+            let score = pData.score || 0;
+
+            const roomSnap = await db.ref(`rooms/${roomCode}`).once('value');
+            const roomData = roomSnap.val();
+            const globalTaskBonus = roomData.globalTaskBonus || 0;
+
+            // 台灣鏟頜魚 (fish) 被動：減輕負擔
+            if (player.selectedChar === 'fish') {
+                let maxKey = null;
+                let maxVal = -1;
+                for (let k in costs) {
+                    if (costs[k] > maxVal) {
+                        maxVal = costs[k];
+                        maxKey = k;
+                    }
+                }
+                if (maxKey) costs[maxKey] = Math.max(0, costs[maxKey] - 1);
+            }
+
+            // 顯示 UI
+            const overlay = document.getElementById('compound-card-overlay');
+            const ui = document.getElementById('compound-card-ui');
+            const title = document.getElementById('comp-title');
+            const reqList = document.getElementById('comp-req-list');
+            const rew = document.getElementById('comp-rewards');
+            const desc = document.getElementById('comp-desc');
+            const img = document.getElementById('comp-image-area');
+            const submitBtn = document.getElementById('comp-submit-btn');
+            const continueBtn = document.getElementById('comp-continue-btn');
+            const stayBtn = document.getElementById('comp-stay-btn');
+
+            title.innerText = task.name;
+            rew.innerText = `完成可獲得積分：${task.reward + globalTaskBonus}`;
+            desc.innerText = task.desc;
+            img.style.backgroundImage = `url('https://picsum.photos/seed/${task.id}/400/300')`;
+
+            // 動態顯示需求
+            reqList.innerHTML = '';
+            let canSubmit = true;
+            const resNames = { forest: "森林", rainforest: "雨林", river: "河川", ocean: "海洋" };
+            const resIcons = { forest: "🌳", rainforest: "🌴", river: "💧", ocean: "🌊" };
+            for (let k in costs) {
+                const item = document.createElement('div');
+                item.style.padding = '2px 8px';
+                item.style.background = '#f1f5f9';
+                item.style.borderRadius = '5px';
+                item.style.fontSize = '0.85rem';
+                const hasEnough = (resources[k] || 0) >= costs[k];
+                item.style.color = hasEnough ? '#1e293b' : '#ef4444';
+                item.innerText = `${resIcons[k]} ${resNames[k]}: ${costs[k]}`;
+                reqList.appendChild(item);
+                if (!hasEnough) canSubmit = false;
+            }
+
+            // 按鈕狀態
+            if (canSubmit) {
+                submitBtn.classList.remove('btn-disabled');
+                submitBtn.disabled = false;
+            } else {
+                submitBtn.classList.add('btn-disabled');
+                submitBtn.disabled = true;
+            }
+
+            if (isLastStep) {
+                continueBtn.style.display = 'none';
+                stayBtn.innerText = "拒絕並結束回合";
+            } else {
+                continueBtn.style.display = 'block';
+                stayBtn.innerText = "拒絕並停留於此";
+            }
+
+            overlay.classList.remove('hidden');
+            ui.classList.remove('spin-out');
+            ui.classList.add('spin-in');
+
+            const choice = await new Promise(resolve => {
+                submitBtn.onclick = () => resolve('submit');
+                continueBtn.onclick = () => resolve('continue');
+                stayBtn.onclick = () => resolve('stay');
+            });
+
+            ui.classList.remove('spin-in');
+            ui.classList.add('spin-out');
+            await new Promise(r => setTimeout(r, 600));
+            overlay.classList.add('hidden');
+
+            if (choice === 'submit') {
+                for (let k in costs) resources[k] -= costs[k];
+                score += (task.reward + globalTaskBonus);
+                if (globalTaskBonus > 0) await db.ref(`rooms/${roomCode}`).update({ globalTaskBonus: 0 });
+                await db.ref(`rooms/${roomCode}/players/${player.id}`).update({ resources, score });
+                await showModal("全球任務成功！", `感謝你對地球的貢獻！獲得積分 +${task.reward + globalTaskBonus}！`, false);
+            } else if (choice === 'stay') {
+                const keys = Object.keys(resources);
+                const randomKey = keys[Math.floor(Math.random() * keys.length)];
+                resources[randomKey]++;
+                await db.ref(`rooms/${roomCode}/players/${player.id}`).update({ resources });
+                await showModal("稍作休息", `你在這裡進行了簡單的環境維護，獲得了 1 個 ${resNames[randomKey]} 資源！`, false);
+            }
+
+            return choice;
         }
 
         let eventCardResolver = null;
@@ -1632,70 +1925,76 @@
                     });
                 });
 
-            } else if (junctions.includes(pos)) {
-                // 岔路複合任務格
-                const cost = (charId === 'fish') ? 1 : 2;
-                const availableRes = Object.keys(resources).filter(k => resources[k] >= cost);
-                
-                if (availableRes.length > 0) {
-                    const targetRes = availableRes[0];
-                    const confirmed = await showModal(
-                        "環境保育任務",
-                        `這裡需要你的幫助！是否消耗 ${cost} 個 ${resNames[targetRes]} 資源來修復棲息地？（可獲得 ${3 + globalTaskBonus} 點積分）`,
-                        true
-                    );
-                    if (confirmed) {
-                        resources[targetRes] -= cost;
-                        score += (3 + globalTaskBonus);
-                        
-                        // 消耗全域加分
-                        if (globalTaskBonus > 0) await db.ref(`rooms/${roomCode}`).update({ globalTaskBonus: 0 });
-
-                        // 鸚鵡被動：群聚呼喚
-                        if (charId === 'parrot') {
-                            const keys = Object.keys(resources);
-                            resources[keys[Math.floor(Math.random() * keys.length)]]++;
-                            await showModal("任務成功", "感謝你的貢獻！鸚鵡發動了群聚呼喚，額外獲得 1 個隨機資源！", false);
-                        } else {
-                            await showModal("任務成功", "感謝你的貢獻，生態環境得到了改善！", false);
-                        }
-                    }
-                } else {
-                    await showModal("環境觀測站", `這裡是重要的生態節點。如果你有足夠的資源（${cost}個相同類型），可以在此執行保育任務。`, false);
-                }
             } else if (tileType === 'resource') {
                 // 資源格
                 resources[ecoType] += 2;
                 await showModal("資源採集", `你在${resNames[ecoType]}區域收集到了 2 個自然資源！`, false);
             } else if (tileType === 'task') {
-                // 任務格
-                const cost = 2; // 任務格目前固定為 2
-                const availableRes = Object.keys(resources).filter(k => resources[k] >= cost);
-                if (availableRes.length > 0) {
-                    const targetRes = availableRes[Math.floor(Math.random() * availableRes.length)];
-                    const confirmed = await showModal(
-                        "生態任務",
-                        `是否消耗 ${cost} 個 ${resNames[targetRes]} 資源來執行保育任務？（可獲得 ${3 + globalTaskBonus} 點積分）`,
-                        true
-                    );
-                    if (confirmed) {
-                        resources[targetRes] -= cost;
-                        score += (3 + globalTaskBonus);
+                // 任務格邏輯
+                const pool = tasksData.filter(t => t.faction === ecoType);
+                const task = pool[Math.floor(Math.random() * pool.length)];
+                const currentRes = resources[ecoType] || 0;
 
-                        // 消耗全域加分
-                        if (globalTaskBonus > 0) await db.ref(`rooms/${roomCode}`).update({ globalTaskBonus: 0 });
+                // 顯示任務卡
+                const overlay = document.getElementById('task-card-overlay');
+                const ui = document.getElementById('task-card-ui');
+                const tag = document.getElementById('task-faction-tag');
+                const title = document.getElementById('task-title');
+                const req = document.getElementById('task-requirements');
+                const rew = document.getElementById('task-rewards');
+                const desc = document.getElementById('task-desc');
+                const img = document.getElementById('task-image-area');
+                const submitBtn = document.getElementById('task-submit-btn');
+                const cancelBtn = document.getElementById('task-cancel-btn');
 
-                        // 鸚鵡被動：群聚呼喚
-                        if (charId === 'parrot') {
-                            const keys = Object.keys(resources);
-                            resources[keys[Math.floor(Math.random() * keys.length)]]++;
-                            await showModal("任務成功", "感謝你的貢獻！鸚鵡發動了群聚呼喚，額外獲得 1 個隨機資源！", false);
-                        } else {
-                            await showModal("任務成功", "感謝你的貢獻！", false);
-                        }
-                    }
+                const factionColors = { forest: '#10b981', rainforest: '#059669', river: '#3b82f6', ocean: '#2563eb' };
+                const factionNames = { forest: '森林', rainforest: '雨林', river: '河川', ocean: '海洋' };
+
+                ui.style.borderColor = factionColors[ecoType];
+                tag.innerText = factionNames[ecoType];
+                tag.style.background = factionColors[ecoType];
+                title.innerText = task.name;
+                req.innerText = `需求：${task.cost} 個 ${resNames[ecoType]} 資源`;
+                rew.innerText = `完成可獲得積分：${task.reward + globalTaskBonus}`;
+                desc.innerText = task.desc;
+                img.style.backgroundImage = `url('https://picsum.photos/seed/${task.id}/400/300')`;
+
+                // 判定資源是否足夠
+                if (currentRes >= task.cost) {
+                    submitBtn.classList.remove('btn-disabled');
+                    submitBtn.disabled = false;
                 } else {
-                    await showModal("生態任務", "這裡需要特定資源才能執行任務。繼續努力收集吧！", false);
+                    submitBtn.classList.add('btn-disabled');
+                    submitBtn.disabled = true;
+                }
+
+                overlay.classList.remove('hidden');
+                ui.classList.remove('spin-out');
+                ui.classList.add('spin-in');
+
+                const userChoice = await new Promise(resolve => {
+                    submitBtn.onclick = () => resolve('submit');
+                    cancelBtn.onclick = () => resolve('cancel');
+                });
+
+                ui.classList.remove('spin-in');
+                ui.classList.add('spin-out');
+                await new Promise(r => setTimeout(r, 600));
+                overlay.classList.add('hidden');
+
+                if (userChoice === 'submit') {
+                    resources[ecoType] -= task.cost;
+                    score += (task.reward + globalTaskBonus);
+                    if (globalTaskBonus > 0) await db.ref(`rooms/${roomCode}`).update({ globalTaskBonus: 0 });
+
+                    // 鸚鵡被動：群聚呼喚
+                    if (charId === 'parrot') {
+                        const keys = Object.keys(resources);
+                        resources[keys[Math.floor(Math.random() * keys.length)]]++;
+                        await showModal("提交成功！", `自然界感謝你的付出！獲得積分 +${task.reward + globalTaskBonus}！\n鸚鵡發動了群聚呼喚，額外獲得 1 個隨機資源！`, false);
+                    } else {
+                        await showModal("提交成功！", `自然界感謝你的付出！獲得積分 +${task.reward + globalTaskBonus}！`, false);
+                    }
                 }
             }
 
