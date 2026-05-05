@@ -103,14 +103,18 @@
         }
 
         .pawn-body {
-            width: 40px; height: 40px;
-            background-size: cover; background-position: center;
-            border-radius: 10px; border: 3px solid white;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            /* 反向旋轉保持直立 */
-            transform: translateZ(30px) rotateZ(calc(var(--rotZ) * -1)) rotateX(calc(var(--rotX) * -1));
-            image-rendering: pixelated;
-        }
+    width: 40px; height: 40px;
+    /* 將 cover 改為 contain，並加上 no-repeat 讓長方形圖片完美塞入正方形框 */
+    background-size: contain; 
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: rgba(255, 255, 255, 0.9); /* 加上微透明白底，讓沒有填滿的部分維持乾淨的框框感 */
+    border-radius: 10px; border: 3px solid white;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    /* 反向旋轉保持直立 */
+    transform: translateZ(30px) rotateZ(calc(var(--rotZ) * -1)) rotateX(calc(var(--rotX) * -1));
+    image-rendering: pixelated;
+}
 
         /* 棋子底部陰影 (平躺) */
         .pawn-wrapper::after {
@@ -121,10 +125,10 @@
             z-index: -1;
         }
 
-        .pawn-0 .pawn-body { background-image: url('images/pawn-0.png'); background-color: transparent; }
-        .pawn-1 .pawn-body { background-image: url('images/pawn-1.png'); background-color: transparent; }
-        .pawn-2 .pawn-body { background-image: url('images/pawn-2.png'); background-color: transparent; }
-        .pawn-3 .pawn-body { background-image: url('images/pawn-3.png'); background-color: transparent; }
+        .pawn-0 .pawn-body { background-image: url('./images/pawn-0.png'); background-color: transparent; }
+        .pawn-1 .pawn-body { background-image: url('./images/pawn-1.png'); background-color: transparent; }
+        .pawn-2 .pawn-body { background-image: url('./images/pawn-2.png'); background-color: transparent; }
+        .pawn-3 .pawn-body { background-image: url('./images/pawn-3.png'); background-color: transparent; }
 
         /* 岔路箭頭 */
         .arrow-overlay {
@@ -717,6 +721,23 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        
+        // 資源檢查與 Fallback 系統
+        function getAssetUrl(id, type = 'char') {
+            const existing = {
+                char: ['owl', 'deer', 'frog', 'fish', 'kingfisher', 'coral', 'dolphin'],
+                evt: ['bio_discover', 'eco_tourism', 'typhoon', 'volunteer_day', 'water_pollute', 'whale_mig', 'wildfire'],
+                task: ['t_f1', 't_o4', 't_v1', 't_v2', 't_v3', 't_v4', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6']
+            };
+
+            if (type === 'char' && existing.char.includes(id)) return `./images/char-${id}.png`;
+            if (type === 'evt' && existing.evt.includes(id)) return `./images/${id}.png`;
+            if (type === 'task' && existing.task.includes(id)) return `./images/${id}.png`;
+            
+            // 針對缺失圖片使用 DiceBear Pixel Art 產生器作為替代
+            const color = (type === 'char') ? 'ffffff' : 'f1f5f9';
+            return `https://api.dicebear.com/9.x/pixel-art/svg?seed=${id}&backgroundColor=${color}`;
+        }
 
         const characters = {
             forest: [
@@ -1144,7 +1165,7 @@
             
             container.innerHTML = `
                 <div class="char-card ${char.faction}">
-                    <div class="char-img" style="background-image: url('images/char-${char.id}.png')">
+                    <div class="char-img" style="background-image: url('${getAssetUrl(char.id, 'char')}')">
                         <div class="faction-tag">${factionNames[char.faction]}</div>
                         <div class="name-badge" style="color: var(--primary)">${char.name}</div>
                     </div>
@@ -1477,15 +1498,21 @@
         }
 
         function syncPawns() {
-            players.forEach((p, i) => {
-                const wrapper = document.getElementById(`pawn-wrapper-${p.id}`);
-                if(wrapper) {
-                    const [r, c] = p.pos.split(',').map(Number);
-                    wrapper.style.left = ((c-1) * 14.28) + '%';
-                    wrapper.style.top = ((r-1) * 14.28) + '%';
-                }
-            });
+    players.forEach((p, i) => {
+        const wrapper = document.getElementById(`pawn-wrapper-${p.id}`);
+        if(wrapper) {
+            const [r, c] = p.pos.split(',').map(Number);
+            wrapper.style.left = ((c-1) * 14.28) + '%';
+            wrapper.style.top = ((r-1) * 14.28) + '%';
+            
+            // 動態載入玩家選擇的角色圖片
+            const body = wrapper.querySelector('.pawn-body');
+            if (body && p.selectedChar) {
+                body.style.backgroundImage = `url('${getAssetUrl(p.selectedChar, 'char')}')`;
+            }
         }
+    });
+}
 
         // --- 移動與岔路邏輯 ---
 
@@ -1671,7 +1698,7 @@
             title.innerText = task.name;
             rew.innerText = `完成可獲得積分：${task.reward + globalTaskBonus}`;
             desc.innerText = task.desc;
-            img.style.backgroundImage = `url('images/${task.id}.png')`;
+            img.style.backgroundImage = `url('${getAssetUrl(task.id, 'task')}')`;
 
             // 動態顯示需求
             reqList.innerHTML = '';
@@ -1800,7 +1827,7 @@
                 title.innerText = evt.name;
                 desc.innerText = evt.desc;
                 lore.innerText = evt.lore;
-                img.style.backgroundImage = `url('images/${evt.id}.png')`;
+                img.style.backgroundImage = `url('${getAssetUrl(evt.id, 'evt')}')`;
 
                 overlay.classList.remove('hidden');
                 ui.classList.remove('spin-out');
@@ -1961,7 +1988,7 @@
                 req.innerText = `需求：${task.cost} 個 ${resNames[ecoType]} 資源`;
                 rew.innerText = `完成可獲得積分：${task.reward + globalTaskBonus}`;
                 desc.innerText = task.desc;
-                img.style.backgroundImage = `url('images/${task.id}.png')`;
+                img.style.backgroundImage = `url('${getAssetUrl(task.id, 'task')}')`;
 
                 // 判定資源是否足夠
                 if (currentRes >= task.cost) {
