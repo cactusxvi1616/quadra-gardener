@@ -120,10 +120,10 @@
             z-index: -1;
         }
 
-        .pawn-0 .pawn-body { background-image: url('https://picsum.photos/seed/owl/100/100'); background-color: #ef4444; }
-        .pawn-1 .pawn-body { background-image: url('https://picsum.photos/seed/cat/100/100'); background-color: #3b82f6; }
-        .pawn-2 .pawn-body { background-image: url('https://picsum.photos/seed/fox/100/100'); background-color: #10b981; }
-        .pawn-3 .pawn-body { background-image: url('https://picsum.photos/seed/deer/100/100'); background-color: #f59e0b; }
+        .pawn-0 .pawn-body { background-image: url('./images/pawn-0.png'); background-color: transparent; }
+        .pawn-1 .pawn-body { background-image: url('./images/pawn-1.png'); background-color: transparent; }
+        .pawn-2 .pawn-body { background-image: url('./images/pawn-2.png'); background-color: transparent; }
+        .pawn-3 .pawn-body { background-image: url('./images/pawn-3.png'); background-color: transparent; }
 
         /* 岔路箭頭 */
         .arrow-overlay {
@@ -1140,7 +1140,7 @@
             
             container.innerHTML = `
                 <div class="char-card ${char.faction}">
-                    <div class="char-img" style="background-image: url('./images/char-${char.id}.jpg')">
+                    <div class="char-img" style="background-image: url('./images/char-${char.id}.png')">
                         <div class="faction-tag">${factionNames[char.faction]}</div>
                         <div class="name-badge" style="color: var(--primary)">${char.name}</div>
                     </div>
@@ -1667,7 +1667,7 @@
             title.innerText = task.name;
             rew.innerText = `完成可獲得積分：${task.reward + globalTaskBonus}`;
             desc.innerText = task.desc;
-            img.style.backgroundImage = `url('https://picsum.photos/seed/${task.id}/400/300')`;
+            img.style.backgroundImage = `url('./images/${task.id}.png')`;
 
             // 動態顯示需求
             reqList.innerHTML = '';
@@ -1796,7 +1796,7 @@
                 title.innerText = evt.name;
                 desc.innerText = evt.desc;
                 lore.innerText = evt.lore;
-                img.style.backgroundImage = `url('https://picsum.photos/seed/${evt.id}/400/300')`;
+                img.style.backgroundImage = `url('./images/${evt.id}.png')`;
 
                 overlay.classList.remove('hidden');
                 ui.classList.remove('spin-out');
@@ -1957,7 +1957,7 @@
                 req.innerText = `需求：${task.cost} 個 ${resNames[ecoType]} 資源`;
                 rew.innerText = `完成可獲得積分：${task.reward + globalTaskBonus}`;
                 desc.innerText = task.desc;
-                img.style.backgroundImage = `url('https://picsum.photos/seed/${task.id}/400/300')`;
+                img.style.backgroundImage = `url('./images/${task.id}.png')`;
 
                 // 判定資源是否足夠
                 if (currentRes >= task.cost) {
