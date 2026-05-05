@@ -109,6 +109,7 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
             /* 反向旋轉保持直立 */
             transform: translateZ(30px) rotateZ(calc(var(--rotZ) * -1)) rotateX(calc(var(--rotX) * -1));
+            image-rendering: pixelated;
         }
 
         /* 棋子底部陰影 (平躺) */
@@ -120,10 +121,10 @@
             z-index: -1;
         }
 
-        .pawn-0 .pawn-body { background-image: url('./images/pawn-0.png'); background-color: transparent; }
-        .pawn-1 .pawn-body { background-image: url('./images/pawn-1.png'); background-color: transparent; }
-        .pawn-2 .pawn-body { background-image: url('./images/pawn-2.png'); background-color: transparent; }
-        .pawn-3 .pawn-body { background-image: url('./images/pawn-3.png'); background-color: transparent; }
+        .pawn-0 .pawn-body { background-image: url('images/pawn-0.png'); background-color: transparent; }
+        .pawn-1 .pawn-body { background-image: url('images/pawn-1.png'); background-color: transparent; }
+        .pawn-2 .pawn-body { background-image: url('images/pawn-2.png'); background-color: transparent; }
+        .pawn-3 .pawn-body { background-image: url('images/pawn-3.png'); background-color: transparent; }
 
         /* 岔路箭頭 */
         .arrow-overlay {
@@ -264,6 +265,7 @@
             background-size: cover;
             background-position: center;
             border: 1px solid #e2e8f0;
+            image-rendering: pixelated;
         }
         #task-name-box {
             background: var(--primary);
@@ -316,6 +318,7 @@
             background-size: cover;
             background-position: center;
             border: 1px solid #e2e8f0;
+            image-rendering: pixelated;
         }
 
         #event-name-box {
@@ -394,6 +397,7 @@
         .char-img {
             width: 100%; aspect-ratio: 7/5; background: #e5e7eb; position: relative;
             background-size: cover; background-position: center;
+            image-rendering: pixelated;
         }
         .faction-tag {
             position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5);
@@ -658,7 +662,7 @@
         <div id="compound-card-overlay" class="hidden">
             <div id="compound-card-ui">
                 <div id="comp-faction-tag" style="position: absolute; top: -15px; right: 20px; background: #7f1d1d; color: white; padding: 5px 15px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">全球任務</div>
-                <div id="comp-image-area" style="width: 100%; aspect-ratio: 7/5; background: #f1f5f9; border-radius: 12px; margin-bottom: 15px; background-size: cover; background-position: center; border: 1px solid #e2e8f0;"></div>
+                <div id="comp-image-area" style="width: 100%; aspect-ratio: 7/5; background: #f1f5f9; border-radius: 12px; margin-bottom: 15px; background-size: cover; background-position: center; border: 1px solid #e2e8f0; image-rendering: pixelated;"></div>
                 <div id="comp-name-box" style="background: #7f1d1d; color: white; padding: 10px; border-radius: 10px; margin-bottom: 15px; transform: skewX(-5deg);">
                     <h2 id="comp-title" style="margin: 0; font-size: 1.3rem; font-weight: 900; transform: skewX(5deg);">全球任務名稱</h2>
                 </div>
@@ -1140,7 +1144,7 @@
             
             container.innerHTML = `
                 <div class="char-card ${char.faction}">
-                    <div class="char-img" style="background-image: url('./images/char-${char.id}.png')">
+                    <div class="char-img" style="background-image: url('images/char-${char.id}.png')">
                         <div class="faction-tag">${factionNames[char.faction]}</div>
                         <div class="name-badge" style="color: var(--primary)">${char.name}</div>
                     </div>
@@ -1667,7 +1671,7 @@
             title.innerText = task.name;
             rew.innerText = `完成可獲得積分：${task.reward + globalTaskBonus}`;
             desc.innerText = task.desc;
-            img.style.backgroundImage = `url('./images/${task.id}.png')`;
+            img.style.backgroundImage = `url('images/${task.id}.png')`;
 
             // 動態顯示需求
             reqList.innerHTML = '';
@@ -1796,7 +1800,7 @@
                 title.innerText = evt.name;
                 desc.innerText = evt.desc;
                 lore.innerText = evt.lore;
-                img.style.backgroundImage = `url('./images/${evt.id}.png')`;
+                img.style.backgroundImage = `url('images/${evt.id}.png')`;
 
                 overlay.classList.remove('hidden');
                 ui.classList.remove('spin-out');
@@ -1957,7 +1961,7 @@
                 req.innerText = `需求：${task.cost} 個 ${resNames[ecoType]} 資源`;
                 rew.innerText = `完成可獲得積分：${task.reward + globalTaskBonus}`;
                 desc.innerText = task.desc;
-                img.style.backgroundImage = `url('./images/${task.id}.png')`;
+                img.style.backgroundImage = `url('images/${task.id}.png')`;
 
                 // 判定資源是否足夠
                 if (currentRes >= task.cost) {
