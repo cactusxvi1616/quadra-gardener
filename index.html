@@ -745,10 +745,10 @@
             };
 
             if (type === 'char') {
-                if (existing.char.includes(id)) return `/images/char-${id}.png`;
+                if (existing.char.includes(id)) return `./images/char-${id}.png`;
             }
-            if (type === 'evt' && existing.evt.includes(id)) return `/images/${id}.png`;
-            if (type === 'task' && existing.task.includes(id)) return `/images/${id}.png`;
+            if (type === 'evt' && existing.evt.includes(id)) return `./images/${id}.png`;
+            if (type === 'task' && existing.task.includes(id)) return `./images/${id}.png`;
             
             // 針對缺失圖片使用 DiceBear Pixel Art 產生器作為替代
             const color = (type === 'char') ? 'ffffff' : 'f1f5f9';
