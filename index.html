@@ -44,7 +44,22 @@
         button { width: 100%; padding: 1rem; border: none; border-radius: 1rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
         .btn-primary { background: var(--primary); color: white; }
 
-        #game-screen { background: radial-gradient(circle at center, #ecfdf5 0%, #d1fae5 100%); perspective: 2000px; }
+        /* 登入大廳背景圖：全螢幕滿版覆蓋置中，自動適應手機、平板與電腦螢幕 */
+        #lobby {
+            background-image: url('./images/background-login.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* 遊戲局內背景圖：利用半透明漸層覆蓋在圖片上方，營造不透明度降低、起霧的效果，確保遊戲盤面與 UI 清晰易讀 */
+        #game-screen { 
+            background: linear-gradient(rgba(240, 253, 244, 0.75), rgba(209, 250, 229, 0.85)), url('./images/background-ingame.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            perspective: 2000px; 
+        }
 
         /* 頂部狀態欄 */
         .game-header { position: absolute; top: 20px; width: 96%; display: flex; justify-content: space-around; gap: 8px; z-index: 100; left: 2%; }
@@ -699,7 +714,7 @@
         <div style="font-size: 5rem;">🏆</div>
         <h1>恭喜獲勝！</h1>
         <div id="winner-name" style="font-size: 1.5rem; font-weight: bold; margin-bottom: 2rem;">玩家名稱</div>
-        <p style="margin-bottom: 2rem;">你已達到 15 分，成為年度生態守護者！</p>
+        <p style="margin-bottom: 2rem;">你已達到 10 分，成為年度生態守護者！</p>
         <button class="btn-primary" style="width: 200px; background: white; color: var(--primary);" onclick="window.location.reload()">回到大廳</button>
     </div>
 
@@ -762,10 +777,10 @@
             };
 
             if (type === 'char') {
-                if (existing.char.includes(id)) return `./images/char-${id}.png`;
+                if (existing.char.includes(id)) return `images/char-${id}.png`;
             }
-            if (type === 'evt' && existing.evt.includes(id)) return `./images/${id}.png`;
-            if (type === 'task' && existing.task.includes(id)) return `./images/${id}.png`;
+            if (type === 'evt' && existing.evt.includes(id)) return `images/${id}.png`;
+            if (type === 'task' && existing.task.includes(id)) return `images/${id}.png`;
             
             // 針對缺失圖片使用 DiceBear Pixel Art 產生器作為替代
             const color = (type === 'char') ? 'ffffff' : 'f1f5f9';
@@ -1423,7 +1438,7 @@
 
             // 檢查勝利條件
             players.forEach(p => {
-                if(p.score >= 15) showVictory(p.name);
+                if(p.score >= 10) showVictory(p.name);
             });
         }
 
