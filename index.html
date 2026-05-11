@@ -704,37 +704,54 @@
     </div>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyBnmMmSsxZ90Sw3HUOgwFGvzMUmQ7Gc2L8",
-            authDomain: "quadra-gardener.firebaseapp.com",
-            databaseURL: "https://quadra-gardener-default-rtdb.firebaseio.com/",
-            projectId: "quadra-gardener",
-            storageBucket: "quadra-gardener.firebasestorage.app",
-            messagingSenderId: "1039703566150",
-            appId: "1:1039703566150:web:a550c99d4e66abd887e747"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-        const auth = firebase.auth();
+        let db, auth;
         
-        // 匿名登入以解決 PERMISSION_DENIED
-        auth.signInAnonymously().catch(err => {
-            console.error("Auth Error:", err);
-            document.getElementById('lobby-error').innerText = '身份驗證失敗: ' + err.message;
-        });
+        async function initFirebase() {
+            try {
+                const response = await fetch('./firebase-applet-config.json');
+                if (!response.ok) throw new Error("Config not found");
+                const firebaseConfig = await response.json();
+                
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+                auth = firebase.auth();
+                
+                // 匿名登入以解決 PERMISSION_DENIED
+                auth.signInAnonymously().catch(err => {
+                    console.error("Auth Error:", err);
+                    let msg = '身份驗證失敗';
+                    if (err.code === 'auth/configuration-not-found' || err.message.includes('CONFIGURATION_NOT_FOUND')) {
+                        msg += ': Firebase 設定無效或未在控制台啟用「匿名登入」。';
+                        console.warn("提示：請在 Firebase 控制台的 Authentication > Sign-in method 中啟用「匿名登入」。");
+                    } else {
+                        msg += ': ' + err.message;
+                    }
+                    document.getElementById('lobby-error').innerText = msg;
+                });
 
-        // 資料庫連線狀態監測
-        const connectedRef = db.ref(".info/connected");
-        connectedRef.on("value", (snap) => {
-            const errEl = document.getElementById('lobby-error');
-            if (snap.val() === true) {
-                console.log("Firebase connected.");
-                if (errEl.innerText.includes('資料庫連線中')) errEl.innerText = '';
-            } else {
-                console.warn("Firebase disconnected.");
-                errEl.innerText = '資料庫連線中或已斷開，請檢查網路或 Firebase 設定。';
+                // 資料庫連線狀態監測
+                const connectedRef = db.ref(".info/connected");
+                connectedRef.on("value", (snap) => {
+                    const errEl = document.getElementById('lobby-error');
+                    if (snap.val() === true) {
+                        console.log("Firebase connected.");
+                        if (errEl.innerText.includes('資料庫連線中')) errEl.innerText = '';
+                    } else {
+                        console.warn("Firebase disconnected.");
+                        errEl.innerText = '資料庫連線中或已斷開，請檢查網路或 Firebase 設定。';
+                    }
+                });
+
+                // 當 Firebase 準備好後再執行原本的邏輯 (這部分可能需要視後續代碼而定，目前先保持全局變量可用)
+            } catch (err) {
+                console.error("Firebase Initialization Error:", err);
+                document.getElementById('lobby-error').innerText = 'Firebase 初始化失敗，請檢查 firebase-applet-config.json 設定。';
+                // 提供本地模式提示
+                console.warn("正在以本地模擬模式運行...");
             }
-        });
+        }
+
+        initFirebase();
         
         // 資源檢查與 Fallback 系統
         function getAssetUrl(id, type = 'char') {
