@@ -983,6 +983,7 @@
                     }
                     return;
                 }
+                isDev = !!data.isDev;
                 players = Object.values(data.players || {}).sort((a, b) => a.id.localeCompare(b.id));
                 console.log("--- 實時玩家資料同步 ---");
                 console.table(players.map(p => ({
@@ -1054,15 +1055,28 @@
             if (waitingTimer) { clearInterval(waitingTimer); waitingTimer = null; }
             isDev = true;
             const ref = db.ref('rooms/' + roomCode);
-            const updates = { status: 'factions' };
-            const dummies = [
-                { id: 'd2', name: '玩家 2', pos: "1,7", lastPos: "", score: 0, resources: { forest: 0, rainforest: 0, river: 0, ocean: 0 } },
-                { id: 'd3', name: '玩家 3', pos: "7,1", lastPos: "", score: 0, resources: { forest: 0, rainforest: 0, river: 0, ocean: 0 } },
-                { id: 'd4', name: '玩家 4', pos: "7,7", lastPos: "", score: 0, resources: { forest: 0, rainforest: 0, river: 0, ocean: 0 } }
-            ];
-            dummies.forEach(p => {
-                updates['players/' + p.id] = p;
-            });
+            const updates = { status: 'factions', isDev: true };
+            
+            const currentCount = players.length;
+            if (currentCount < 4) {
+                const resTypes = ['forest', 'rainforest', 'river', 'ocean'];
+                for (let idx = currentCount; idx < 4; idx++) {
+                    const dummyId = 'd' + (idx + 1);
+                    const dummyStartPos = spawnPoints[idx];
+                    const initialRes = { forest: 0, rainforest: 0, river: 0, ocean: 0 };
+                    initialRes[resTypes[idx]] = 1;
+                    
+                    const dummy = {
+                        id: dummyId,
+                        name: '玩家 ' + (idx + 1),
+                        pos: dummyStartPos,
+                        lastPos: "",
+                        score: 0,
+                        resources: initialRes
+                    };
+                    updates['players/' + dummyId] = dummy;
+                }
+            }
             await ref.update(updates);
         }
 
@@ -1109,8 +1123,10 @@
                 }
             });
 
-            // 開發者模式下，只要自己選了就開始倒數；正常模式需滿 4 人
-            if((takenCount === 4 || (isDev && hasSelected)) && !factionCountdownStarted) {
+            // 開發者模式下，需要所有加入的真人玩家都選了才開始倒數；正常模式需滿 4 人
+            const realPlayers = players.filter(p => !p.id.startsWith('d'));
+            const allRealSelected = realPlayers.every(p => Object.values(factions).includes(p.name));
+            if((takenCount === 4 || (isDev && allRealSelected)) && !factionCountdownStarted) {
                 factionCountdownStarted = true;
                 const banner = document.getElementById('faction-countdown');
                 banner.style.display = 'block';
@@ -1284,7 +1300,7 @@
                 let fIdx = 0;
                 const updates = {};
                 for(let pid in playersObj) {
-                    if(pid !== myId && !playersObj[pid].selectedChar) {
+                    if(pid.startsWith('d') && !playersObj[pid].selectedChar) {
                         const f = availableFactions[fIdx++];
                         if(!f) continue;
                         const charList = characters[f];
